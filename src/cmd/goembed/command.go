@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +13,75 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
+
+func processDirectory(e embed.Builder, absPath string) error {
+	logrus.Infof("Processing directory: %s", absPath)
+	convertFs := afero.NewBasePathFs(afero.NewOsFs(), fmt.Sprintf("%s/", absPath))
+
+	return afero.Walk(convertFs, "/", func(path string, info os.FileInfo, err error) error {
+		if !info.IsDir() {
+			logrus.WithField("file", path).Infof("Adding file: %s", path)
+			f, err := convertFs.Open(path)
+			if err != nil {
+				logrus.WithField("file", path).Errorf("Unable to open file: %s", err)
+				return err
+			}
+			err = e.AddFile(path, f)
+			if err != nil {
+				logrus.WithField("file", path).Errorf("Unable to add file: %s", err)
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func processFile(e embed.Builder, absPath string) error {
+	path := filepath.Base(absPath)
+	logrus.WithField("file", path).Infof("Processing file: %s", path)
+	f, err := os.Open(absPath)
+	if err != nil {
+		logrus.WithField("file", path).Errorf("Unable to open file: %s", err)
+		return err
+	}
+	err = e.AddFile(path, f)
+	if err != nil {
+		logrus.WithField("file", path).Errorf("Unable to add file: %s", err)
+		return err
+	}
+
+	return nil
+}
+
+func processPath(e embed.Builder, path string) error {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		logrus.Errorf("Unable to process path: %s", err)
+		return err
+	}
+
+	absStat, err := os.Stat(absPath)
+	if err != nil {
+		logrus.Errorf("Unable to process path: %s", err)
+		return err
+	}
+
+	if absStat.IsDir() {
+		err := processDirectory(e, absPath)
+		if err != nil {
+			logrus.Errorf("Unable to process directory: %s", err)
+			return err
+		}
+	} else {
+		err := processFile(e, absPath)
+		if err != nil {
+			logrus.Errorf("Unable to process file: %s", err)
+			return err
+		}
+	}
+
+	return nil
+}
 
 func mainCommand(cmd *cobra.Command, args []string) {
 	var e embed.Builder
@@ -37,48 +105,9 @@ func mainCommand(cmd *cobra.Command, args []string) {
 	}
 
 	for _, path := range args {
-		absPath, err := filepath.Abs(path)
+		err := processPath(e, path)
 		if err != nil {
-			log.Fatal(err)
-		}
-
-		absStat, err := os.Stat(absPath)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		if absStat.IsDir() {
-			logrus.Infof("Processing directory: %s", absPath)
-			convertFs := afero.NewBasePathFs(afero.NewOsFs(), fmt.Sprintf("%s/", absPath))
-
-			afero.Walk(convertFs, "/", func(path string, info os.FileInfo, err error) error {
-				if !info.IsDir() {
-					logrus.WithField("file", path).Infof("Adding file: %s", path)
-					f, err := convertFs.Open(path)
-					if err != nil {
-						logrus.WithField("file", path).Errorf("Unable to open file: %s", err)
-						return err
-					}
-					err = e.AddFile(path, f)
-					if err != nil {
-						logrus.WithField("file", path).Errorf("Unable to add file: %s", err)
-						return err
-					}
-				}
-				return nil
-			})
-		} else {
-			path := filepath.Base(absPath)
-			logrus.WithField("file", path).Infof("Processing file: %s", path)
-			f, err := os.Open(absPath)
-			if err != nil {
-				logrus.WithField("file", path).Errorf("Unable to open file: %s", err)
-			}
-			err = e.AddFile(path, f)
-			if err != nil {
-				logrus.WithField("file", path).Errorf("Unable to add file: %s", err)
-			}
-
+			os.Exit(1)
 		}
 	}
 
@@ -89,7 +118,7 @@ func mainCommand(cmd *cobra.Command, args []string) {
 	default:
 		f, err := os.Create(viper.GetString("file"))
 		if err != nil {
-			log.Fatal(err)
+			logrus.Fatal(err)
 		}
 		out = f
 		defer f.Close()
@@ -97,7 +126,7 @@ func mainCommand(cmd *cobra.Command, args []string) {
 
 	err := e.Render(out)
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 
 }

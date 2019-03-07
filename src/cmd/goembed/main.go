@@ -6,7 +6,7 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:  "afero-static",
+	Use:  "goembed",
 	Run:  mainCommand,
 	Args: cobra.MinimumNArgs(1),
 }

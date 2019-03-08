@@ -46,7 +46,7 @@ artifacts/generated/compression/%/compression.go: src/embed/%.go artifacts/gener
 	make run RUN_ARGS="./test -c "$(*)" -f "$(@)" -p "main" -d"
 	go test "$(@)"
 
-artifacts/generated/compression/%/main.go: test/main.go
+artifacts/generated/compression/%/main.go: test/main.go.src
 	@mkdir -p "$(@D)"
 	cp "$(<)" "$(@)"
 
@@ -62,3 +62,10 @@ artifacts/generated/compression/%/index.html: artifacts/generated/compression/%/
 artifacts/generated/compression/%/test.patch: artifacts/generated/compression/%/index.html
 	@mkdir -p "$(@D)"
 	diff -u "test/index.html" "$(@D)/index.html" | tee "$(@)"
+
+.PHONY: examples
+examples: examples/webserver/assets/assets.go
+
+examples/webserver/assets/assets.go:
+	@mkdir -p "$(@D)"
+	make run RUN_ARGS="./test -f "$(@)" -p 'assets'"

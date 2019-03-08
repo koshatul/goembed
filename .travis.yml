@@ -5,6 +5,7 @@ go:
 - tip
 script:
 - make ci
+- make test-compression
 - make artifacts/build/release/linux/amd64/goembed
 before_deploy: 
 - make archives

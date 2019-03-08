@@ -29,6 +29,10 @@ install: vendor $(REQ) $(_SRC) | $(USE)
 .PHONY: upx
 upx: $(patsubst artifacts/build/%,artifacts/upx/%.upx,$(addprefix artifacts/build/release/,$(_STEMS)))
 
+.PHONY: clean
+clean::
+	$(RM) -r artifacts/generated
+
 artifacts/upx/%.upx: artifacts/build/%
 	-@mkdir -p "$(@D)"
 	-$(RM) -f "$(@)"
@@ -50,7 +54,7 @@ artifacts/generated/compression/%/main.go: test/main.go.src
 	@mkdir -p "$(@D)"
 	cp "$(<)" "$(@)"
 
-artifacts/generated/compression/%/a.out: artifacts/generated/compression/%/main.go artifacts/generated/compression/%/compression.go
+artifacts/generated/compression/%/a.out: artifacts/generated/compression/%/main.go artifacts/generated/compression/%/compression.go artifacts/generated/compression/%/lint
 	@mkdir -p "$(@D)"
 	cd "artifacts/generated/compression/$(*)" && go build -ldflags="-s -w" -o a.out .
 
@@ -58,10 +62,31 @@ artifacts/generated/compression/%/index.html: artifacts/generated/compression/%/
 	@mkdir -p "$(@D)"
 	"$(@D)/a.out" | tee "$(@)"
 	
-
 artifacts/generated/compression/%/test.patch: artifacts/generated/compression/%/index.html
 	@mkdir -p "$(@D)"
 	diff -u "test/index.html" "$(@D)/index.html" | tee "$(@)"
+
+artifacts/generated/compression/%/lint:
+	@mkdir -p "$(@D)"
+
+	go vet "./$(@D)/." | tee "$@"
+	! go fmt "./$(@D)/." | tee -a "$@" | grep ^
+
+	$(MISSPELL) -w -error -locale US "./$(@D)/." | tee -a "$@"
+
+	$(GOMETALINTER) --disable-all --deadline=60s \
+		--enable=vet \
+		--enable=vetshadow \
+		--enable=ineffassign \
+		--enable=deadcode \
+		--enable=gofmt \
+		"./$(@D)/." | tee -a "$@"
+
+	-$(GOMETALINTER) --disable-all --deadline=60s --cyclo-over=15 \
+		--enable=golint \
+		--enable=goconst \
+		--enable=gocyclo \
+		"./$(@D)/." | tee -a "$@"
 
 .PHONY: examples
 examples: examples/webserver/assets/assets.go

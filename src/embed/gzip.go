@@ -23,7 +23,7 @@ func NewGzipBuilder(packageName string) Builder {
 	f.HeaderComment("This file is generated - do not edit.")
 	f.Line()
 	f.ImportName("github.com/spf13/afero", "afero")
-	f.Var().Id("Fs").Id("afero.Fs")
+	f.Comment("Fs is the filesystem containing the assets embedded in this package.").Line().Var().Id("Fs").Id("afero.Fs")
 
 	return &GzipBuilder{
 		file:  f,
@@ -58,7 +58,7 @@ func (b *GzipBuilder) AddFile(filename string, file io.Reader) error {
 
 	b64filename := base64.RawStdEncoding.EncodeToString([]byte(filename))
 
-	fileid := fmt.Sprintf("file_%s", b64filename)
+	fileid := fmt.Sprintf("file%s", b64filename)
 
 	b.files[filename] = fileid
 

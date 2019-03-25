@@ -22,7 +22,7 @@ func init() {
 	viper.BindPFlag("file", rootCmd.PersistentFlags().Lookup("file"))
 	viper.BindEnv("file", "OUTPUT_FILE")
 
-	rootCmd.PersistentFlags().StringP("package", "p", "assets", "golang package name for file")
+	rootCmd.PersistentFlags().StringP("package", "p", "", "golang package name for file (default: based on output file directory)")
 	viper.BindPFlag("package", rootCmd.PersistentFlags().Lookup("package"))
 	viper.BindEnv("package", "PACKAGE_NAME")
 

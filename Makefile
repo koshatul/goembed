@@ -9,6 +9,7 @@ APP_DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 MATRIX_COMPRESSION ?= nocompress deflate gzip lzw snappy zlib
 
 _TEST_FILES := $(shell find ./test -type f)
+_TEST_CASES := $(patsubst %.sh,%,$(patsubst ./test-cases/%,%,$(shell find ./test-cases -type f -name '*.sh')))
 
 -include artifacts/make/go/Makefile
 
@@ -94,3 +95,9 @@ examples: examples/webserver/assets/assets.go
 examples/webserver/assets/assets.go:
 	@mkdir -p "$(@D)"
 	make run RUN_ARGS="./test -f "$(@)" -p 'assets'"
+
+.PHONY: test-cases
+test-cases: $(addprefix artifacts/test-cases/,$(_TEST_CASES))
+
+artifacts/test-cases/%: artifacts/build/debug/$(GOOS)/$(GOARCH)/goembed
+	CMD="artifacts/build/debug/$(GOOS)/$(GOARCH)/goembed" TEST_PATH="$(shell pwd)/test" bash "./test-cases/$(*).sh"

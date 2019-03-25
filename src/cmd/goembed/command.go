@@ -84,6 +84,24 @@ func processPath(e embed.Builder, path string) error {
 }
 
 func mainCommand(cmd *cobra.Command, args []string) {
+	switch viper.GetString("file") {
+	case "-":
+		// If STDOUT, user *must* specify a package name
+		if viper.GetString("package") == "" {
+			logrus.Error("If using STDOUT then --package <name> must be specified")
+			os.Exit(1)
+		}
+	default:
+		if viper.GetString("package") == "" {
+			absPath, err := filepath.Abs(viper.GetString("file"))
+			if err != nil {
+				logrus.Fatal(err)
+			}
+			packageName := filepath.Base(filepath.Dir(absPath))
+			viper.Set("package", packageName)
+		}
+	}
+
 	var e embed.Builder
 	switch strings.ToLower(viper.GetString("compression")) {
 	case "none", "nocompress":

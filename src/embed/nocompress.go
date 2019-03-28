@@ -18,7 +18,7 @@ type NoCompressBuilder struct {
 // NewNoCompressBuilder returns a Builder compatible class that uses no compression
 func NewNoCompressBuilder(packageName string) Builder {
 	f := jen.NewFile(packageName)
-	f.HeaderComment("This file is generated - do not edit.")
+	f.HeaderComment("Code generated - DO NOT EDIT.")
 	f.Line()
 	f.ImportName("github.com/spf13/afero", "afero")
 	f.Comment("Fs is the filesystem containing the assets embedded in this package.").Line().Var().Id("Fs").Id("afero.Fs")

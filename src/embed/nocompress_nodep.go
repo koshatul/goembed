@@ -135,7 +135,7 @@ func (b *NoCompressNoDepBuilder) addDir(dir string) {
 	fileid := fmt.Sprintf("dir%s", b64filename)
 	b.files[dir] = fileid
 
-	b.children[dir] = jen.Id("children").Op(":")
+	b.children[dir] = jen.Null()
 
 	b.file.Var().Id(fileid).Op("*").Id("assetFileData").Op("=").Op("&").Id("assetFileData").Values(
 		jen.Id("name").Op(":").Lit(dir),
@@ -239,9 +239,15 @@ func (b *NoCompressNoDepBuilder) Render(w io.Writer) error {
 				}
 			}
 		}
-		if b.children[filename] != nil {
-			b.children[filename].Index().Op("*").Id("assetFileData").Values(children...)
+		if len(children) > 0 {
+			b.children[filename].Id("children").Op(":").Index().Op("*").Id("assetFileData").Values(
+				children...,
+			)
 		}
+		// if b.children[filename] != nil {
+		// 	b.children[filename].Index().Op("*").Id("assetFileData").Values(children...)
+		// 	jen.Id("children").Op(":")
+		// }
 		// if len(children) > 0 {
 		// 	b.children[filename].Index().Op("*").Id("assetFileData").Values(
 		// 		children...,

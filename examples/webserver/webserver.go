@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	fileserver := http.FileServer(assets.FS{})
+	fileserver := http.FileServer(assets.Fs{})
 	http.Handle("/", http.StripPrefix("/", fileserver))
 	log.Println("Listening on :8080")
 	http.ListenAndServe(":8080", nil)

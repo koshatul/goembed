@@ -32,10 +32,9 @@ func NewNoCompressNoDepBuilder(packageName string) Builder {
 		jen.For(
 			jen.Id("f").Op(",").Id("v").Op(":=").Range().Id("fileData").Block(
 				jen.If(
-					jen.Op("!").Qual("strings", "EqualFold").Params(jen.Id("a").Dot("name"), jen.Id("f")),
-					jen.Qual("strings", "HasPrefix").Params(jen.Id("a").Dot("name"), jen.Id("f")),
+					jen.Op("!").Qual("strings", "EqualFold").Params(jen.Id("a").Dot("name"), jen.Id("f")).Op("&&").Qual("strings", "HasPrefix").Params(jen.Id("a").Dot("name"), jen.Id("f")),
 				).Block(
-					jen.Id("ft").Op(":=").Id("f").Index(jen.Len(jen.Id("a").Dot("name")), jen.Null()),
+					jen.Id("ft").Op(":=").Id("f").Index(jen.Len(jen.Id("a").Dot("name")), jen.Len(jen.Id("f"))),
 					jen.If(
 						jen.Op("!").Qual("strings", "Contains").Params(jen.Id("ft"), jen.Lit("/")).Block(
 							jen.Id("o").Op("=").Append(jen.Id("o"), jen.Id("v")),
@@ -63,6 +62,7 @@ func NewNoCompressNoDepBuilder(packageName string) Builder {
 					jen.Id("Reader").Op(":").Qual("bytes", "NewReader").Params(jen.Id("v").Dot("data")),
 					jen.Id("assetFileData").Op(":").Id("v"),
 				),
+				jen.Nil(),
 			),
 		),
 		jen.Return(
@@ -94,7 +94,7 @@ func NewNoCompressNoDepBuilder(packageName string) Builder {
 	f.Func().Params(jen.Id("a").Op("*").Id("assetFile")).Id("Readdir").Params(jen.Id("count").Int()).Params(jen.Index().Qual("os", "FileInfo"), jen.Error()).Block(
 		jen.If(jen.Id("a").Dot("dir")).Block(
 			jen.Id("fl").Op(":=").Index().Qual("os", "FileInfo").Block(),
-			jen.For(jen.Id("_").Op(",").Id("ok").Op(":=").Range().Id("a").Dot("children")).Block(
+			jen.For(jen.Id("_").Op(",").Id("c").Op(":=").Range().Id("a").Dot("Children").Call()).Block(
 				jen.Id("d").Op(":=").Op("&").Id("assetFile").Values(jen.Id("assetFileData").Op(":").Id("c")),
 				jen.Id("fl").Op("=").Append(jen.Id("fl"), jen.Op("&").Id("assetFileInfo").Values(jen.Id("f").Op(":").Id("d"))),
 			),
@@ -107,8 +107,6 @@ func NewNoCompressNoDepBuilder(packageName string) Builder {
 		jen.Return(jen.Nil()),
 	)
 
-	// f.Comment("Fs is the filesystem containing the assets embedded in this package.").Line().Var().Id("Fs").Id("afero.Fs")
-
 	return &NoCompressNoDepBuilder{
 		file:     f,
 		files:    map[string]string{},
@@ -118,7 +116,6 @@ func NewNoCompressNoDepBuilder(packageName string) Builder {
 
 func (b *NoCompressNoDepBuilder) addDir(dir string) {
 	for name, _ := range b.files {
-		logrus.Infof("Name: %s; Dir: %s", name, dir)
 		if strings.EqualFold(dir, name) {
 			return
 		}
@@ -174,9 +171,6 @@ func (b *NoCompressNoDepBuilder) AddFile(filename string, file io.Reader) error 
 		jen.Id("dir").Op(":").Lit(false),
 		jen.Id("data").Op(":").Index().Byte().Values(v...),
 	)
-	// b.file.Var().Id(fileid).Op("=").Index().Byte().Values(
-	// 	v...,
-	// )
 
 	return nil
 }
@@ -184,23 +178,16 @@ func (b *NoCompressNoDepBuilder) AddFile(filename string, file io.Reader) error 
 // Render writes the generated Go code to the supplied io.Writer, returning an
 // error on failure to write
 func (b *NoCompressNoDepBuilder) Render(w io.Writer) error {
-	v := []jen.Code{
-		jen.Id("Fs").Op("=").Qual("github.com/spf13/afero", "NewMemMapFs").Call(),
-	}
+	v := []jen.Code{}
 
 	for filename, file := range b.files {
 		v = append(
 			v,
-			jen.Qual("github.com/spf13/afero", "WriteFile").Call(
-				jen.Id("Fs"),
-				jen.Lit(filename),
-				jen.Id(file),
-				jen.Qual("os", "ModePerm"),
-			),
+			jen.Lit(filename).Op(":").Id(file),
 		)
 	}
 
-	b.file.Func().Id("init").Params().Block(
+	b.file.Var().Id("fileData").Op("=").Map(jen.String()).Op("*").Id("assetFileData").Values(
 		v...,
 	)
 

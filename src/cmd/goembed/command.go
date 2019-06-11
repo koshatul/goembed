@@ -106,6 +106,8 @@ func mainCommand(cmd *cobra.Command, args []string) {
 	switch strings.ToLower(viper.GetString("compression")) {
 	case "none", "nocompress":
 		e = embed.NewNoCompressBuilder(viper.GetString("package"))
+	case "none_nodep", "nocompress_nodep":
+		e = embed.NewNoCompressNoDepBuilder(viper.GetString("package"))
 	case "deflate":
 		e = embed.NewDeflateBuilder(viper.GetString("package"))
 	case "gzip":

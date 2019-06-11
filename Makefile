@@ -94,7 +94,7 @@ examples: examples/webserver/assets/assets.go
 
 examples/webserver/assets/assets.go:
 	@mkdir -p "$(@D)"
-	make run RUN_ARGS="./test -f "$(@)" -p 'assets'"
+	make run RUN_ARGS="./test -c nocompress_nodep -f "$(@)" -p 'assets'"
 
 .PHONY: test-cases
 test-cases: $(addprefix artifacts/test-cases/,$(_TEST_CASES))

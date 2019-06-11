@@ -12,8 +12,20 @@ type assetFileData struct {
 	name string
 	data []byte
 	dir bool
-	children []*assetFileData
 }
+func (a *assetFileData) children() ([]*assetFileData) {
+	o := []*assetFileData{}
+	for f, v := range fileData {
+		if !strings.EqualFold(a.name, f) && strings.HasPrefix(a.name, f) {
+			ft := f[len(a.name):]
+			if !strings.Contains(ft, "/") {
+				o := append(o, v)
+			}
+		}
+	}
+	return o
+}
+
 
 var fileabc *assetFileData = &assetFileData{
 	name: "/index.html", 

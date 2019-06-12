@@ -19,6 +19,11 @@ func NewGzipStreamShrinker() Shrinker {
 	return &GzipStreamShrinker{}
 }
 
+// Name returns a simple name for this module
+func (b *GzipStreamShrinker) Name() string {
+	return "gzip"
+}
+
 // IsStream returns true if the shrinker works on streams instead of byte slices
 func (b *GzipStreamShrinker) IsStream() bool {
 	return true

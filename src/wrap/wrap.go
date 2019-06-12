@@ -8,8 +8,7 @@ import (
 
 // Wrapper is the interface that provides a method for handling the data.
 type Wrapper interface {
-	// AddFile(filename string, file io.Reader) error
-	// AddDir(dir string) error
+	Name() string
 	AddFile(filename string, file goembed.File) error
 	Render(w io.Writer) error
 }

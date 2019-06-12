@@ -19,6 +19,11 @@ func NewSnappyStreamShrinker() Shrinker {
 	return &SnappyStreamShrinker{}
 }
 
+// Name returns a simple name for this module
+func (b *SnappyStreamShrinker) Name() string {
+	return "snappy-stream"
+}
+
 // IsStream returns true if the shrinker works on streams instead of byte slices
 func (b *SnappyStreamShrinker) IsStream() bool {
 	return true

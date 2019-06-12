@@ -40,6 +40,11 @@ func NewAferoWrapper(packageName string, shrinker shrink.Shrinker) Wrapper {
 	}
 }
 
+// Name returns a simple name for this module
+func (b *AferoWrapper) Name() string {
+	return "afero"
+}
+
 // AddFile adds a file to the embedded package.
 func (b *AferoWrapper) AddFile(filename string, file goembed.File) error {
 	v, err := b.shrinker.Compress(file)
@@ -47,12 +52,8 @@ func (b *AferoWrapper) AddFile(filename string, file goembed.File) error {
 		return err
 	}
 
-	// logrus.WithField("compression", "snappy").Debugf("Wrote %d bytes to static asset", len(v))
-
 	b64filename := base64.RawStdEncoding.EncodeToString([]byte(filename))
-
 	fileid := fmt.Sprintf("file%s", b64filename)
-
 	b.files[filename] = fileid
 
 	b.file.Var().Id(fileid).Op("=").Index().Byte().Values(

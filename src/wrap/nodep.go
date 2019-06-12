@@ -114,6 +114,11 @@ func NewNoDepWrapper(packageName string, shrinker shrink.Shrinker) Wrapper {
 	}
 }
 
+// Name returns a simple name for this module
+func (b *NoDepWrapper) Name() string {
+	return "nodep"
+}
+
 func (b *NoDepWrapper) addDir(dir string) {
 	for name := range b.files {
 		if strings.EqualFold(dir, name) {
@@ -137,7 +142,7 @@ func (b *NoDepWrapper) addDir(dir string) {
 		b.children[dir],
 	)
 
-	logrus.WithField("compression", "none").Debugf("Added directory %s to asset list", dir)
+	logrus.WithField("wrapper", "nodep").Debugf("Added directory %s to asset list", dir)
 }
 
 // AddFile adds a file to the embedded package.
@@ -157,9 +162,7 @@ func (b *NoDepWrapper) AddFile(filename string, file goembed.File) error {
 	}
 
 	b64filename := base64.RawStdEncoding.EncodeToString([]byte(filename))
-
 	fileid := fmt.Sprintf("file%s", b64filename)
-
 	b.files[filename] = fileid
 
 	b.file.Var().Id(fileid).Op("*").Id("assetFileData").Op("=").Op("&").Id("assetFileData").Values(
@@ -169,6 +172,8 @@ func (b *NoDepWrapper) AddFile(filename string, file goembed.File) error {
 		jen.Id("modtime").Op(":").Qual("time", "Unix").Params(jen.Lit(file.Stat.ModTime().Unix()), jen.Lit(0)),
 		jen.Id("data").Op(":").Index().Byte().Values(v...),
 	)
+
+	logrus.WithField("wrapper", "nodep").Debugf("Added file %s to asset list", filename)
 
 	return nil
 }

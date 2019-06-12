@@ -19,6 +19,11 @@ func NewDeflateStreamShrinker() Shrinker {
 	return &DeflateStreamShrinker{}
 }
 
+// Name returns a simple name for this module
+func (b *DeflateStreamShrinker) Name() string {
+	return "deflate"
+}
+
 // IsStream returns true if the shrinker works on streams instead of byte slices
 func (b *DeflateStreamShrinker) IsStream() bool {
 	return true

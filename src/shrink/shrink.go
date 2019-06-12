@@ -7,6 +7,7 @@ import (
 
 // Shrinker is the interface that provides a compression method for the data.
 type Shrinker interface {
+	Name() string
 	Compress(file goembed.File) ([]jen.Code, error)
 	Header() []jen.Code
 	Decompressor() []jen.Code

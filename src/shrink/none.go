@@ -15,6 +15,11 @@ func NewNoShrinker() Shrinker {
 	return &NoShrinker{}
 }
 
+// Name returns a simple name for this module
+func (b *NoShrinker) Name() string {
+	return "none"
+}
+
 // IsStream returns true if the shrinker works on streams instead of byte slices
 func (b *NoShrinker) IsStream() bool {
 	return false

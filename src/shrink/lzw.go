@@ -19,6 +19,11 @@ func NewLzwStreamShrinker() Shrinker {
 	return &LzwStreamShrinker{}
 }
 
+// Name returns a simple name for this module
+func (b *LzwStreamShrinker) Name() string {
+	return "lzw"
+}
+
 // IsStream returns true if the shrinker works on streams instead of byte slices
 func (b *LzwStreamShrinker) IsStream() bool {
 	return true

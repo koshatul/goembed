@@ -19,6 +19,11 @@ func NewZlibStreamShrinker() Shrinker {
 	return &ZlibStreamShrinker{}
 }
 
+// Name returns a simple name for this module
+func (b *ZlibStreamShrinker) Name() string {
+	return "zlib"
+}
+
 // IsStream returns true if the shrinker works on streams instead of byte slices
 func (b *ZlibStreamShrinker) IsStream() bool {
 	return true

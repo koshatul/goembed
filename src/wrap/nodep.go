@@ -70,7 +70,7 @@ func NewNoDepWrapper(packageName string, shrinker shrink.Shrinker) Wrapper {
 		jen.Id("f").Op("*").Id("assetFile"),
 	)
 
-	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("Name").Params().Params(jen.String()).Block(jen.Return(jen.Id("a").Dot("f").Dot("name")))
+	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("Name").Params().Params(jen.String()).Block(jen.Return(jen.Qual("path", "Base").Call(jen.Id("a").Dot("f").Dot("name"))))
 	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("Size").Params().Params(jen.Int64()).Block(jen.Return(jen.Id("a").Dot("f").Dot("size")))
 	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("Mode").Params().Params(jen.Qual("os", "FileMode")).Block(jen.Return(jen.Lit(0444)))
 	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("ModTime").Params().Params(jen.Qual("time", "Time")).Block(jen.Return(jen.Id("a").Dot("f").Dot("modtime")))

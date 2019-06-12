@@ -6,6 +6,9 @@ GIT_TAG ?= $(shell git tag -l --merged $(GIT_HASH) | tail -n1)
 APP_VERSION ?= $(if $(TRAVIS_TAG),$(TRAVIS_TAG),$(if $(GIT_TAG),$(GIT_TAG),$(GIT_HASH)))
 APP_DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
+DEBUG_ARGS = --ldflags "-X main.version=$(APP_VERSION)-debug -X main.gitHash=$(GIT_HASH) -X main.buildDate=$(APP_DATE)"
+RELEASE_ARGS = -v -ldflags "-X main.version=$(APP_VERSION) -X main.gitHash=$(GIT_HASH) -X main.buildDate=$(APP_DATE) -s -w"
+
 MATRIX_WRAPPER ?= nodep afero
 MATRIX_COMPRESSION ?= deflate gzip lzw none snappy snappystream zlib
 # MATRIX_COMPRESSION ?= nocompress deflate gzip lzw snappy zlib
@@ -95,11 +98,15 @@ artifacts/generated/compression/%/lint:
 		"./$(@D)/." | tee -a "$@"
 
 .PHONY: examples
-examples: examples/webserver/assets/assets.go
+examples: examples/webserver/assets/assets.go examples/webserver-afero/assets/assets.go
 
 examples/webserver/assets/assets.go:
 	@mkdir -p "$(@D)"
-	make run RUN_ARGS="./test -c nocompress -w nodep -f "$(@)" -p 'assets'"
+	make run RUN_ARGS="./test -c deflate -w nodep -f "$(@)" -p 'assets'"
+
+examples/webserver-afero/assets/assets.go:
+	@mkdir -p "$(@D)"
+	make run RUN_ARGS="./test -c deflate -w afero -f "$(@)" -p 'assets'"
 
 .PHONY: test-cases
 test-cases: $(addprefix artifacts/test-cases/,$(_TEST_CASES))

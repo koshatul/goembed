@@ -16,6 +16,8 @@ goembed has sane defaults and will safely generate a go package from a directory
 
 Then in your application just import the generated package
 
+If you prefer to use a pseudo-filesystem there is support for using [afero](https://github.com/spf13/afero) as a wrapper.
+
 ~~~ go
 package main
 
@@ -24,15 +26,12 @@ import (
 	"net/http"
 
 	"github.com/koshatul/goembed/examples/webserver/assets"
-	"github.com/spf13/afero"
 )
 
 func main() {
-	httpFs := afero.NewHttpFs(assets.Fs)
-	fileserver := http.FileServer(httpFs.Dir("/"))
-	http.Handle("/", fileserver)
-
-    log.Println("Listening on :8080")
+	fileserver := http.FileServer(assets.Fs)
+	http.Handle("/", http.StripPrefix("/", fileserver))
+	log.Println("Listening on :8080")
 	http.ListenAndServe(":8080", nil)
 }
 ~~~

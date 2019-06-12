@@ -3,83 +3,24 @@
 package assets
 
 import (
-	"bytes"
-	"net/http"
+	snappy "github.com/golang/snappy"
+	afero "github.com/spf13/afero"
 	"os"
-	"time"
 )
 
-type assetFileData struct {
-	name     string
-	data     []byte
-	dir      bool
-	modtime  time.Time
-	children []os.FileInfo
-}
-type Fs struct{}
+// Fs is the filesystem containing the assets embedded in this package.
+var Fs afero.Fs
 
-func (a Fs) Open(name string) (http.File, error) {
-	return Open(name)
-}
-func Open(name string) (http.File, error) {
-	switch name {
-	case "/":
-		return &assetFile{Reader: bytes.NewReader(dirLw.data), assetFileData: dirLw}, nil
-	case "/index.html":
-		return &assetFile{Reader: bytes.NewReader(fileL2luZGV4Lmh0bWw.data), assetFileData: fileL2luZGV4Lmh0bWw}, nil
-	case "/s1/s2":
-		return &assetFile{Reader: bytes.NewReader(dirL3MxL3My.data), assetFileData: dirL3MxL3My}, nil
-	case "/s1":
-		return &assetFile{Reader: bytes.NewReader(dirL3Mx.data), assetFileData: dirL3Mx}, nil
-	case "/s1/s2/index.html":
-		return &assetFile{Reader: bytes.NewReader(fileL3MxL3MyL2luZGV4Lmh0bWw.data), assetFileData: fileL3MxL3MyL2luZGV4Lmh0bWw}, nil
-	}
-	return nil, os.ErrNotExist
+func decode(input []byte) []byte {
+	o, _ := snappy.Decode(nil, input)
+	return o
 }
 
-type assetFileInfo struct {
-	f *assetFile
-}
+var fileL2luZGV4Lmh0bWw = []byte{56, 60, 60, 104, 116, 109, 108, 62, 10, 32, 32, 32, 32, 60, 98, 111, 100, 121, 9, 11, 1, 1, 32, 84, 101, 115, 116, 32, 70, 105, 108, 101, 9, 29, 56, 47, 98, 111, 100, 121, 62, 10, 60, 47, 104, 116, 109, 108, 62, 10}
+var fileL3MxL3MyL2luZGV4Lmh0bWw = []byte{56, 60, 60, 104, 116, 109, 108, 62, 10, 32, 32, 32, 32, 60, 98, 111, 100, 121, 9, 11, 1, 1, 32, 84, 101, 115, 116, 32, 70, 105, 108, 101, 9, 29, 56, 47, 98, 111, 100, 121, 62, 10, 60, 47, 104, 116, 109, 108, 62, 10}
 
-func (a assetFileInfo) Name() string {
-	return a.f.name
+func init() {
+	Fs = afero.NewMemMapFs()
+	afero.WriteFile(Fs, "/index.html", decode(fileL2luZGV4Lmh0bWw), os.ModePerm)
+	afero.WriteFile(Fs, "/s1/s2/index.html", decode(fileL3MxL3MyL2luZGV4Lmh0bWw), os.ModePerm)
 }
-func (a assetFileInfo) Size() int64 {
-	return int64(len(a.f.data))
-}
-func (a assetFileInfo) Mode() os.FileMode {
-	return 292
-}
-func (a assetFileInfo) ModTime() time.Time {
-	return a.f.modtime
-}
-func (a assetFileInfo) IsDir() bool {
-	return a.f.dir
-}
-func (a assetFileInfo) Sys() interface{} {
-	return nil
-}
-
-type assetFile struct {
-	*bytes.Reader
-	*assetFileData
-}
-
-func (a *assetFile) Stat() (os.FileInfo, error) {
-	return assetFileInfo{f: a}, nil
-}
-func (a *assetFile) Readdir(count int) ([]os.FileInfo, error) {
-	if a.dir {
-		return a.children, nil
-	}
-	return nil, nil
-}
-func (a *assetFile) Close() error {
-	return nil
-}
-
-var dirLw *assetFileData = &assetFileData{name: "/", dir: true, modtime: time.Unix(int64(1560298378), 0), children: []os.FileInfo{&assetFileInfo{f: &assetFile{assetFileData: fileL2luZGV4Lmh0bWw}}, &assetFileInfo{f: &assetFile{assetFileData: dirL3Mx}}}}
-var fileL2luZGV4Lmh0bWw *assetFileData = &assetFileData{name: "/index.html", dir: false, modtime: time.Unix(int64(1560298378), 0), data: []byte{60, 104, 116, 109, 108, 62, 10, 32, 32, 32, 32, 60, 98, 111, 100, 121, 62, 10, 32, 32, 32, 32, 32, 32, 32, 32, 84, 101, 115, 116, 32, 70, 105, 108, 101, 10, 32, 32, 32, 32, 60, 47, 98, 111, 100, 121, 62, 10, 60, 47, 104, 116, 109, 108, 62, 10}}
-var dirL3MxL3My *assetFileData = &assetFileData{name: "/s1/s2", dir: true, modtime: time.Unix(int64(1560298378), 0)}
-var dirL3Mx *assetFileData = &assetFileData{name: "/s1", dir: true, modtime: time.Unix(int64(1560298378), 0)}
-var fileL3MxL3MyL2luZGV4Lmh0bWw *assetFileData = &assetFileData{name: "/s1/s2/index.html", dir: false, modtime: time.Unix(int64(1560298378), 0), data: []byte{60, 104, 116, 109, 108, 62, 10, 32, 32, 32, 32, 60, 98, 111, 100, 121, 62, 10, 32, 32, 32, 32, 32, 32, 32, 32, 84, 101, 115, 116, 32, 70, 105, 108, 101, 10, 32, 32, 32, 32, 60, 47, 98, 111, 100, 121, 62, 10, 60, 47, 104, 116, 109, 108, 62, 10}}

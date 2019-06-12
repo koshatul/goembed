@@ -1,0 +1,215 @@
+package wrap
+
+// // Wrapper is the interface that provides a method for handling the data.
+// type Wrapper interface {
+// 	// AddFile(filename string, file io.Reader) error
+// 	// AddDir(dir string) error
+// 	AddFile(filename string, file goembed.File) error
+// 	Render(w io.Writer) error
+// }
+
+import (
+	"encoding/base64"
+	"fmt"
+	"io"
+	"log"
+	"strings"
+	"time"
+
+	"github.com/dave/jennifer/jen"
+	"github.com/koshatul/goembed/src/goembed"
+	"github.com/koshatul/goembed/src/shrink"
+	"github.com/sirupsen/logrus"
+)
+
+// NoDepWrapper is a Wrapper compatible struct that uses no dependencies
+type NoDepWrapper struct {
+	file           *jen.File
+	files          map[string]string
+	shrinker       shrink.Shrinker
+	children       map[string]*jen.Statement
+	openSwitchFunc *jen.Statement
+}
+
+// NewNoDepWrapper returns a Wrapper compatible class that uses no dependencies for the file system
+func NewNoDepWrapper(packageName string, shrinker shrink.Shrinker) Wrapper {
+	f := jen.NewFile(packageName)
+	f.HeaderComment("Code generated - DO NOT EDIT.")
+	f.Line()
+
+	f.Comment("Fs is the filesystem containing the assets embedded in this package.").Line().Var().Id("Fs").Id("fs")
+
+	f.Type().Id("assetFileData").Struct(
+		jen.Id("name").String(),
+		jen.Id("data").Index().Byte(),
+		jen.Id("dir").Bool(),
+		jen.Id("modtime").Qual("time", "Time"),
+		jen.Id("children").Index().Qual("os", "FileInfo"),
+	)
+
+	openSwitchFunc := jen.Switch(jen.Id("name"))
+
+	f.Type().Id("fs").Struct()
+	f.Func().Params(jen.Id("a").Id("fs")).Id("Open").Params(
+		jen.Id("name").String(),
+	).Params(
+		jen.Qual("net/http", "File"),
+		jen.Error(),
+	).Block(
+		jen.Return(jen.Id("Open").Call(jen.Id("name"))),
+	)
+
+	f.Func().Id("Open").Params(
+		jen.Id("name").String(),
+	).Params(
+		jen.Qual("net/http", "File"),
+		jen.Error(),
+	).Block(
+		openSwitchFunc,
+		jen.Return(
+			jen.Nil(),
+			jen.Qual("os", "ErrNotExist"),
+		),
+	)
+
+	f.Type().Id("assetFileInfo").Struct(
+		jen.Id("f").Op("*").Id("assetFile"),
+	)
+
+	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("Name").Params().Params(jen.String()).Block(jen.Return(jen.Id("a").Dot("f").Dot("name")))
+	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("Size").Params().Params(jen.Int64()).Block(jen.Return(jen.Id("int64").Call(jen.Id("len").Call(jen.Id("a").Dot("f").Dot("data")))))
+	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("Mode").Params().Params(jen.Qual("os", "FileMode")).Block(jen.Return(jen.Lit(0444)))
+	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("ModTime").Params().Params(jen.Qual("time", "Time")).Block(jen.Return(jen.Id("a").Dot("f").Dot("modtime")))
+	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("IsDir").Params().Params(jen.Bool()).Block(jen.Return(jen.Id("a").Dot("f").Dot("dir")))
+	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("Sys").Params().Params(jen.Interface()).Block(jen.Return(jen.Nil()))
+
+	f.Type().Id("assetFile").Struct(
+		jen.Op("*").Qual("bytes", "Reader"),
+		jen.Op("*").Id("assetFileData"),
+	)
+
+	f.Func().Params(jen.Id("a").Op("*").Id("assetFile")).Id("Stat").Params().Params(jen.Qual("os", "FileInfo"), jen.Error()).Block(
+		jen.Return(jen.Id("assetFileInfo").Values(jen.Id("f").Op(":").Id("a")), jen.Nil()),
+	)
+
+	f.Func().Params(jen.Id("a").Op("*").Id("assetFile")).Id("Readdir").Params(jen.Id("count").Int()).Params(jen.Index().Qual("os", "FileInfo"), jen.Error()).Block(
+		jen.If(jen.Id("a").Dot("dir")).Block(
+			jen.Return(jen.Id("a").Dot("children"), jen.Nil()),
+		),
+		jen.Return(jen.Nil(), jen.Nil()),
+	)
+
+	f.Func().Params(jen.Id("a").Op("*").Id("assetFile")).Id("Close").Params().Params(jen.Error()).Block(
+		jen.Return(jen.Nil()),
+	)
+
+	f.Func().Id("decode").Params(jen.Id("input").Index().Byte()).Params(jen.Index().Byte()).Block(
+		shrinker.Decompressor()...,
+	)
+
+	return &NoDepWrapper{
+		file:           f,
+		files:          map[string]string{},
+		shrinker:       shrinker,
+		children:       map[string]*jen.Statement{},
+		openSwitchFunc: openSwitchFunc,
+	}
+}
+
+func (b *NoDepWrapper) addDir(dir string) {
+	for name, _ := range b.files {
+		if strings.EqualFold(dir, name) {
+			return
+		}
+	}
+
+	if strings.EqualFold(dir, "") {
+		return
+	}
+	b64filename := base64.RawStdEncoding.EncodeToString([]byte(dir))
+	fileid := fmt.Sprintf("dir%s", b64filename)
+	b.files[dir] = fileid
+
+	b.children[dir] = jen.Null()
+
+	b.file.Var().Id(fileid).Op("*").Id("assetFileData").Op("=").Op("&").Id("assetFileData").Values(
+		jen.Id("name").Op(":").Lit(dir),
+		jen.Id("dir").Op(":").Lit(true),
+		jen.Id("modtime").Op(":").Qual("time", "Unix").Params(jen.Lit(time.Now().Unix()), jen.Lit(0)),
+		b.children[dir],
+	)
+
+	logrus.WithField("compression", "none").Debugf("Added directory %s to asset list", dir)
+}
+
+// AddFile adds a file to the embedded package.
+func (b *NoDepWrapper) AddFile(filename string, file goembed.File) error {
+	b.addDir("/")
+
+	v, err := b.shrinker.Compress(file)
+	if err != nil {
+		return err
+	}
+
+	// logrus.WithField("compression", "none").Debugf("Wrote %d bytes to static asset", len(v))
+
+	b64filename := base64.RawStdEncoding.EncodeToString([]byte(filename))
+
+	fileid := fmt.Sprintf("file%s", b64filename)
+
+	b.files[filename] = fileid
+
+	b.file.Var().Id(fileid).Op("*").Id("assetFileData").Op("=").Op("&").Id("assetFileData").Values(
+		jen.Id("name").Op(":").Lit(filename),
+		jen.Id("dir").Op(":").Lit(false),
+		jen.Id("modtime").Op(":").Qual("time", "Unix").Params(jen.Lit(time.Now().Unix()), jen.Lit(0)), //TODO get modtime from source file
+		jen.Id("data").Op(":").Index().Byte().Values(v...),
+	)
+
+	return nil
+}
+
+// Render writes the generated Go code to the supplied io.Writer, returning an
+// error on failure to write
+func (b *NoDepWrapper) Render(w io.Writer) error {
+	caseList := []jen.Code{}
+	for filename, file := range b.files {
+		caseList = append(
+			caseList,
+			jen.Case(jen.Lit(filename)).Block(
+				jen.Return(
+					jen.Op("&").Id("assetFile").Values(
+						jen.Id("Reader").Op(":").Qual("bytes", "NewReader").Params(jen.Id(file).Dot("data")),
+						jen.Id("assetFileData").Op(":").Id(file),
+					),
+					jen.Nil(),
+				),
+			),
+		)
+
+		log.Printf("filename: %s", filename)
+		children := []jen.Code{}
+		for f, v := range b.files {
+			log.Printf("filename:'%s', f:'%s', v:'%s'", filename, f, v)
+			if !strings.EqualFold(filename, f) && strings.HasPrefix(f, filename) {
+				log.Printf("f:'%s' filename:'%s'", f, filename)
+				log.Printf("f(%d:%d)", len(filename), len(f))
+				ft := f[len(filename):len(f)]
+				if !strings.Contains(ft, "/") {
+					children = append(children, jen.Op("&").Id("assetFileInfo").Values(jen.Id("f").Op(":").Op("&").Id("assetFile").Values(jen.Id("assetFileData").Op(":").Id(v))))
+				}
+			}
+		}
+		if len(children) > 0 {
+			b.children[filename].Id("children").Op(":").Index().Qual("os", "FileInfo").Values(
+				children...,
+			)
+		}
+	}
+
+	b.openSwitchFunc.Block(
+		caseList...,
+	)
+
+	return b.file.Render(w)
+}

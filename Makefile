@@ -43,6 +43,9 @@ artifacts/upx/%.upx: artifacts/build/%
 run: artifacts/build/debug/$(GOOS)/$(GOARCH)/goembed
 	$< $(RUN_ARGS)
 
+
+.SECONDARY: $(addsuffix /compression.go,$(addprefix artifacts/generated/compression/,$(MATRIX_COMPRESSION)))
+
 .PHONY: test-compression
 test-compression: $(addsuffix /test.patch,$(addprefix artifacts/generated/compression/,$(MATRIX_COMPRESSION)))
 

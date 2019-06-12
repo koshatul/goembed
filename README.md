@@ -4,6 +4,23 @@
 
 goembed takes a list of local files and embeds them into golang source files.
 
+## Compression
+
+Supported compression algorithms:
+- deflate
+- gzip
+- lzw
+- snappy
+- snappy (stream)
+- zlib
+- none
+
+## Wrappers
+
+Supported wrappers:
+- `nodep` No runtime dependencies, self-contained.
+- `afero` using [spf13/afero](https://github.com/spf13/afero).
+
 ## Usage
 
 Install the command line tool first.

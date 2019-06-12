@@ -7,28 +7,36 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/koshatul/goembed/src/embed"
+	"github.com/koshatul/goembed/src/shrink"
+
+	"github.com/koshatul/goembed/src/goembed"
+	"github.com/koshatul/goembed/src/wrap"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-func processDirectory(e embed.Builder, absPath string) error {
+func processDirectory(e wrap.Wrapper, s shrink.Shrinker, absPath string) error {
 	logrus.Infof("Processing directory: %s", absPath)
 	convertFs := afero.NewBasePathFs(afero.NewOsFs(), fmt.Sprintf("%s/", absPath))
 
 	return afero.Walk(convertFs, "/", func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
-			logrus.WithField("file", path).Infof("Adding file: %s", path)
+			logrus.WithFields(logrus.Fields{"file": path, "compression": s.Name(), "wrapper": e.Name()}).Infof("Adding file: %s", path)
 			f, err := convertFs.Open(path)
 			if err != nil {
-				logrus.WithField("file", path).Errorf("Unable to open file: %s", err)
+				logrus.WithFields(logrus.Fields{"file": path, "compression": s.Name(), "wrapper": e.Name()}).Errorf("Unable to open file: %s", err)
 				return err
 			}
-			err = e.AddFile(path, f)
+			st, err := f.Stat()
 			if err != nil {
-				logrus.WithField("file", path).Errorf("Unable to add file: %s", err)
+				logrus.WithFields(logrus.Fields{"file": path, "compression": s.Name(), "wrapper": e.Name()}).Errorf("Unable to get file stat: %s", err)
+				return err
+			}
+			err = e.AddFile(path, goembed.NewFile(path, st, f))
+			if err != nil {
+				logrus.WithFields(logrus.Fields{"file": path, "compression": s.Name(), "wrapper": e.Name()}).Errorf("Unable to add file: %s", err)
 				return err
 			}
 		}
@@ -36,24 +44,29 @@ func processDirectory(e embed.Builder, absPath string) error {
 	})
 }
 
-func processFile(e embed.Builder, absPath string) error {
+func processFile(e wrap.Wrapper, s shrink.Shrinker, absPath string) error {
 	path := filepath.Base(absPath)
-	logrus.WithField("file", path).Infof("Processing file: %s", path)
+	logrus.WithFields(logrus.Fields{"file": path, "compression": s.Name(), "wrapper": e.Name()}).Infof("Processing file: %s", path)
 	f, err := os.Open(absPath)
 	if err != nil {
-		logrus.WithField("file", path).Errorf("Unable to open file: %s", err)
+		logrus.WithFields(logrus.Fields{"file": path, "compression": s.Name(), "wrapper": e.Name()}).Errorf("Unable to open file: %s", err)
 		return err
 	}
-	err = e.AddFile(path, f)
+	st, err := f.Stat()
 	if err != nil {
-		logrus.WithField("file", path).Errorf("Unable to add file: %s", err)
+		logrus.WithFields(logrus.Fields{"file": path, "compression": s.Name(), "wrapper": e.Name()}).Errorf("Unable to get file stat: %s", err)
+		return err
+	}
+	err = e.AddFile(path, goembed.NewFile(path, st, f))
+	if err != nil {
+		logrus.WithFields(logrus.Fields{"file": path, "compression": s.Name(), "wrapper": e.Name()}).Errorf("Unable to add file: %s", err)
 		return err
 	}
 
 	return nil
 }
 
-func processPath(e embed.Builder, path string) error {
+func processPath(e wrap.Wrapper, s shrink.Shrinker, path string) error {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		logrus.Errorf("Unable to process path: %s", err)
@@ -67,13 +80,13 @@ func processPath(e embed.Builder, path string) error {
 	}
 
 	if absStat.IsDir() {
-		err := processDirectory(e, absPath)
+		err := processDirectory(e, s, absPath)
 		if err != nil {
 			logrus.Errorf("Unable to process directory: %s", err)
 			return err
 		}
 	} else {
-		err := processFile(e, absPath)
+		err := processFile(e, s, absPath)
 		if err != nil {
 			logrus.Errorf("Unable to process file: %s", err)
 			return err
@@ -81,6 +94,42 @@ func processPath(e embed.Builder, path string) error {
 	}
 
 	return nil
+}
+
+func getShrinker(cmd *cobra.Command) shrink.Shrinker {
+	switch strings.ToLower(viper.GetString("compression")) {
+	case "none", "nocompress":
+		return shrink.NewNoShrinker()
+	case "deflate":
+		return shrink.NewDeflateStreamShrinker()
+	case "gzip":
+		return shrink.NewGzipStreamShrinker()
+	case "lzw":
+		return shrink.NewLzwStreamShrinker()
+	case "snappy":
+		return shrink.NewSnappyShrinker()
+	case "snappystream":
+		return shrink.NewSnappyStreamShrinker()
+	case "zlib":
+		return shrink.NewZlibStreamShrinker()
+	default:
+		logrus.Errorf("Invalid compression type: %s", strings.ToLower(viper.GetString("compression")))
+		cmd.Help()
+		return nil
+	}
+}
+
+func getWrapper(cmd *cobra.Command, s shrink.Shrinker) wrap.Wrapper {
+	switch strings.ToLower(viper.GetString("wrapper")) {
+	case "none", "nodep":
+		return wrap.NewNoDepWrapper(viper.GetString("package"), s)
+	case "afero":
+		return wrap.NewAferoWrapper(viper.GetString("package"), s)
+	default:
+		logrus.Errorf("Invalid wrapper type: %s", strings.ToLower(viper.GetString("wrapper")))
+		cmd.Help()
+		return nil
+	}
 }
 
 func mainCommand(cmd *cobra.Command, args []string) {
@@ -102,28 +151,18 @@ func mainCommand(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	var e embed.Builder
-	switch strings.ToLower(viper.GetString("compression")) {
-	case "none", "nocompress":
-		e = embed.NewNoCompressBuilder(viper.GetString("package"))
-	case "deflate":
-		e = embed.NewDeflateBuilder(viper.GetString("package"))
-	case "gzip":
-		e = embed.NewGzipBuilder(viper.GetString("package"))
-	case "lzw":
-		e = embed.NewLzwBuilder(viper.GetString("package"))
-	case "snappy":
-		e = embed.NewSnappyBuilder(viper.GetString("package"))
-	case "zlib":
-		e = embed.NewZlibBuilder(viper.GetString("package"))
-	default:
-		logrus.Errorf("Invalid compression type: %s", strings.ToLower(viper.GetString("compression")))
-		cmd.Help()
+	s := getShrinker(cmd)
+	if s == nil {
+		return
+	}
+
+	e := getWrapper(cmd, s)
+	if s == nil {
 		return
 	}
 
 	for _, path := range args {
-		err := processPath(e, path)
+		err := processPath(e, s, path)
 		if err != nil {
 			os.Exit(1)
 		}

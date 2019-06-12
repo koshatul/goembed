@@ -2,15 +2,18 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
-
-	"github.com/spf13/afero"
 )
 
 func main() {
-	data, err := afero.ReadFile(Fs, "/index.html")
+	f, err := Fs.Open("/index.html")
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("%s", data)
+	dst, err := ioutil.ReadAll(f)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%s", dst)
 }

@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/dave/jennifer/jen"
 	"github.com/sirupsen/logrus"
@@ -24,10 +25,12 @@ func NewNoCompressNoDepBuilder(packageName string) Builder {
 	f := jen.NewFile(packageName)
 	f.HeaderComment("Code generated - DO NOT EDIT.")
 	f.Line()
+	// f.Const().Id("generatedTime").Op("=").
 	f.Type().Id("assetFileData").Struct(
 		jen.Id("name").String(),
 		jen.Id("data").Index().Byte(),
 		jen.Id("dir").Bool(),
+		jen.Id("modtime").Qual("time", "Time"),
 		jen.Id("children").Index().Op("*").Id("assetFileData"),
 	)
 	// f.Func().Params(jen.Id("a").Op("*").Id("assetFileData")).Id("Children").Params().Params(jen.Index().Op("*").Id("assetFileData")).Block(
@@ -53,6 +56,15 @@ func NewNoCompressNoDepBuilder(packageName string) Builder {
 
 	f.Type().Id("Fs").Struct()
 	f.Func().Params(jen.Id("a").Id("Fs")).Id("Open").Params(
+		jen.Id("name").String(),
+	).Params(
+		jen.Qual("net/http", "File"),
+		jen.Error(),
+	).Block(
+		jen.Return(jen.Id("Open").Call(jen.Id("name"))),
+	)
+
+	f.Func().Id("Open").Params(
 		jen.Id("name").String(),
 	).Params(
 		jen.Qual("net/http", "File"),
@@ -84,7 +96,7 @@ func NewNoCompressNoDepBuilder(packageName string) Builder {
 	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("Name").Params().Params(jen.String()).Block(jen.Return(jen.Id("a").Dot("f").Dot("name")))
 	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("Size").Params().Params(jen.Int64()).Block(jen.Return(jen.Id("int64").Call(jen.Id("len").Call(jen.Id("a").Dot("f").Dot("data")))))
 	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("Mode").Params().Params(jen.Qual("os", "FileMode")).Block(jen.Return(jen.Lit(0444)))
-	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("ModTime").Params().Params(jen.Qual("time", "Time")).Block(jen.Return(jen.Qual("time", "Time").Block()))
+	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("ModTime").Params().Params(jen.Qual("time", "Time")).Block(jen.Return(jen.Id("a").Dot("f").Dot("modtime")))
 	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("IsDir").Params().Params(jen.Bool()).Block(jen.Return(jen.Id("a").Dot("f").Dot("dir")))
 	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("Sys").Params().Params(jen.Interface()).Block(jen.Return(jen.Nil()))
 
@@ -140,6 +152,7 @@ func (b *NoCompressNoDepBuilder) addDir(dir string) {
 	b.file.Var().Id(fileid).Op("*").Id("assetFileData").Op("=").Op("&").Id("assetFileData").Values(
 		jen.Id("name").Op(":").Lit(dir),
 		jen.Id("dir").Op(":").Lit(true),
+		jen.Id("modtime").Op(":").Qual("time", "Unix").Params(jen.Lit(time.Now().Unix()), jen.Lit(0)),
 		b.children[dir],
 	)
 
@@ -179,6 +192,7 @@ func (b *NoCompressNoDepBuilder) AddFile(filename string, file io.Reader) error 
 	b.file.Var().Id(fileid).Op("*").Id("assetFileData").Op("=").Op("&").Id("assetFileData").Values(
 		jen.Id("name").Op(":").Lit(filename),
 		jen.Id("dir").Op(":").Lit(false),
+		jen.Id("modtime").Op(":").Qual("time", "Unix").Params(jen.Lit(time.Now().Unix()), jen.Lit(0)), //TODO get modtime from source file
 		jen.Id("data").Op(":").Index().Byte().Values(v...),
 	)
 

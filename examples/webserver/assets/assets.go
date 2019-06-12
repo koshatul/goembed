@@ -14,7 +14,7 @@ type assetFileData struct {
 	data     []byte
 	dir      bool
 	modtime  time.Time
-	children []*assetFileData
+	children []os.FileInfo
 }
 type Fs struct{}
 
@@ -70,12 +70,7 @@ func (a *assetFile) Stat() (os.FileInfo, error) {
 }
 func (a *assetFile) Readdir(count int) ([]os.FileInfo, error) {
 	if a.dir {
-		fl := []os.FileInfo{}
-		for _, c := range a.children {
-			d := &assetFile{assetFileData: c}
-			fl = append(fl, &assetFileInfo{f: d})
-		}
-		return fl, nil
+		return a.children, nil
 	}
 	return nil, nil
 }
@@ -83,8 +78,8 @@ func (a *assetFile) Close() error {
 	return nil
 }
 
-var dirLw *assetFileData = &assetFileData{name: "/", dir: true, modtime: time.Unix(int64(1560297932), 0), children: []*assetFileData{fileL2luZGV4Lmh0bWw, dirL3Mx}}
-var fileL2luZGV4Lmh0bWw *assetFileData = &assetFileData{name: "/index.html", dir: false, modtime: time.Unix(int64(1560297932), 0), data: []byte{60, 104, 116, 109, 108, 62, 10, 32, 32, 32, 32, 60, 98, 111, 100, 121, 62, 10, 32, 32, 32, 32, 32, 32, 32, 32, 84, 101, 115, 116, 32, 70, 105, 108, 101, 10, 32, 32, 32, 32, 60, 47, 98, 111, 100, 121, 62, 10, 60, 47, 104, 116, 109, 108, 62, 10}}
-var dirL3MxL3My *assetFileData = &assetFileData{name: "/s1/s2", dir: true, modtime: time.Unix(int64(1560297932), 0)}
-var dirL3Mx *assetFileData = &assetFileData{name: "/s1", dir: true, modtime: time.Unix(int64(1560297932), 0)}
-var fileL3MxL3MyL2luZGV4Lmh0bWw *assetFileData = &assetFileData{name: "/s1/s2/index.html", dir: false, modtime: time.Unix(int64(1560297932), 0), data: []byte{60, 104, 116, 109, 108, 62, 10, 32, 32, 32, 32, 60, 98, 111, 100, 121, 62, 10, 32, 32, 32, 32, 32, 32, 32, 32, 84, 101, 115, 116, 32, 70, 105, 108, 101, 10, 32, 32, 32, 32, 60, 47, 98, 111, 100, 121, 62, 10, 60, 47, 104, 116, 109, 108, 62, 10}}
+var dirLw *assetFileData = &assetFileData{name: "/", dir: true, modtime: time.Unix(int64(1560298378), 0), children: []os.FileInfo{&assetFileInfo{f: &assetFile{assetFileData: fileL2luZGV4Lmh0bWw}}, &assetFileInfo{f: &assetFile{assetFileData: dirL3Mx}}}}
+var fileL2luZGV4Lmh0bWw *assetFileData = &assetFileData{name: "/index.html", dir: false, modtime: time.Unix(int64(1560298378), 0), data: []byte{60, 104, 116, 109, 108, 62, 10, 32, 32, 32, 32, 60, 98, 111, 100, 121, 62, 10, 32, 32, 32, 32, 32, 32, 32, 32, 84, 101, 115, 116, 32, 70, 105, 108, 101, 10, 32, 32, 32, 32, 60, 47, 98, 111, 100, 121, 62, 10, 60, 47, 104, 116, 109, 108, 62, 10}}
+var dirL3MxL3My *assetFileData = &assetFileData{name: "/s1/s2", dir: true, modtime: time.Unix(int64(1560298378), 0)}
+var dirL3Mx *assetFileData = &assetFileData{name: "/s1", dir: true, modtime: time.Unix(int64(1560298378), 0)}
+var fileL3MxL3MyL2luZGV4Lmh0bWw *assetFileData = &assetFileData{name: "/s1/s2/index.html", dir: false, modtime: time.Unix(int64(1560298378), 0), data: []byte{60, 104, 116, 109, 108, 62, 10, 32, 32, 32, 32, 60, 98, 111, 100, 121, 62, 10, 32, 32, 32, 32, 32, 32, 32, 32, 84, 101, 115, 116, 32, 70, 105, 108, 101, 10, 32, 32, 32, 32, 60, 47, 98, 111, 100, 121, 62, 10, 60, 47, 104, 116, 109, 108, 62, 10}}

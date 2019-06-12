@@ -31,7 +31,8 @@ func NewNoCompressNoDepBuilder(packageName string) Builder {
 		jen.Id("data").Index().Byte(),
 		jen.Id("dir").Bool(),
 		jen.Id("modtime").Qual("time", "Time"),
-		jen.Id("children").Index().Op("*").Id("assetFileData"),
+		// jen.Id("children").Index().Op("*").Id("assetFileData"),
+		jen.Id("children").Index().Qual("os", "FileInfo"),
 	)
 	// f.Func().Params(jen.Id("a").Op("*").Id("assetFileData")).Id("Children").Params().Params(jen.Index().Op("*").Id("assetFileData")).Block(
 	// 	jen.Id("o").Op(":=").Index().Op("*").Id("assetFileData").Values(),
@@ -109,14 +110,21 @@ func NewNoCompressNoDepBuilder(packageName string) Builder {
 		jen.Return(jen.Id("assetFileInfo").Values(jen.Id("f").Op(":").Id("a")), jen.Nil()),
 	)
 
+	// f.Func().Params(jen.Id("a").Op("*").Id("assetFile")).Id("Readdir").Params(jen.Id("count").Int()).Params(jen.Index().Qual("os", "FileInfo"), jen.Error()).Block(
+	// 	jen.If(jen.Id("a").Dot("dir")).Block(
+	// 		jen.Id("fl").Op(":=").Index().Qual("os", "FileInfo").Block(),
+	// 		jen.For(jen.Id("_").Op(",").Id("c").Op(":=").Range().Id("a").Dot("children")).Block(
+	// 			jen.Id("d").Op(":=").Op("&").Id("assetFile").Values(jen.Id("assetFileData").Op(":").Id("c")),
+	// 			jen.Id("fl").Op("=").Append(jen.Id("fl"), jen.Op("&").Id("assetFileInfo").Values(jen.Id("f").Op(":").Id("d"))),
+	// 		),
+	// 		jen.Return(jen.Id("fl"), jen.Nil()),
+	// 	),
+	// 	jen.Return(jen.Nil(), jen.Nil()),
+	// )
+
 	f.Func().Params(jen.Id("a").Op("*").Id("assetFile")).Id("Readdir").Params(jen.Id("count").Int()).Params(jen.Index().Qual("os", "FileInfo"), jen.Error()).Block(
 		jen.If(jen.Id("a").Dot("dir")).Block(
-			jen.Id("fl").Op(":=").Index().Qual("os", "FileInfo").Block(),
-			jen.For(jen.Id("_").Op(",").Id("c").Op(":=").Range().Id("a").Dot("children")).Block(
-				jen.Id("d").Op(":=").Op("&").Id("assetFile").Values(jen.Id("assetFileData").Op(":").Id("c")),
-				jen.Id("fl").Op("=").Append(jen.Id("fl"), jen.Op("&").Id("assetFileInfo").Values(jen.Id("f").Op(":").Id("d"))),
-			),
-			jen.Return(jen.Id("fl"), jen.Nil()),
+			jen.Return(jen.Id("a").Dot("children"), jen.Nil()),
 		),
 		jen.Return(jen.Nil(), jen.Nil()),
 	)
@@ -246,7 +254,10 @@ func (b *NoCompressNoDepBuilder) Render(w io.Writer) error {
 				log.Printf("f(%d:%d)", len(filename), len(f))
 				ft := f[len(filename):len(f)]
 				if !strings.Contains(ft, "/") {
-					children = append(children, jen.Id(v))
+					// children = append(children, jen.Id(v))
+					// children = append(children, jen.Op("&").Id("assetFile").Values(jen.Id("assetFileData").Op(":").Id(v)))
+					children = append(children, jen.Op("&").Id("assetFileInfo").Values(jen.Id("f").Op(":").Op("&").Id("assetFile").Values(jen.Id("assetFileData").Op(":").Id(v))))
+					// jen.Op("&").Id("assetFileInfo").Values(jen.Id("f").Op(":").Id("d")
 					// b.children[filename].Add(
 					// 	jen.Lit("blah"),
 					// )
@@ -254,7 +265,7 @@ func (b *NoCompressNoDepBuilder) Render(w io.Writer) error {
 			}
 		}
 		if len(children) > 0 {
-			b.children[filename].Id("children").Op(":").Index().Op("*").Id("assetFileData").Values(
+			b.children[filename].Id("children").Op(":").Index().Qual("os", "FileInfo").Values(
 				children...,
 			)
 		}

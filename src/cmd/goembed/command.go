@@ -96,6 +96,42 @@ func processPath(e wrap.Wrapper, s shrink.Shrinker, path string) error {
 	return nil
 }
 
+func getShrinker(cmd *cobra.Command) shrink.Shrinker {
+	switch strings.ToLower(viper.GetString("compression")) {
+	case "none", "nocompress":
+		return shrink.NewNoShrinker()
+	case "deflate":
+		return shrink.NewDeflateStreamShrinker()
+	case "gzip":
+		return shrink.NewGzipStreamShrinker()
+	case "lzw":
+		return shrink.NewLzwStreamShrinker()
+	case "snappy":
+		return shrink.NewSnappyShrinker()
+	case "snappystream":
+		return shrink.NewSnappyStreamShrinker()
+	case "zlib":
+		return shrink.NewZlibStreamShrinker()
+	default:
+		logrus.Errorf("Invalid compression type: %s", strings.ToLower(viper.GetString("compression")))
+		cmd.Help()
+		return nil
+	}
+}
+
+func getWrapper(cmd *cobra.Command, s shrink.Shrinker) wrap.Wrapper {
+	switch strings.ToLower(viper.GetString("wrapper")) {
+	case "none", "nodep":
+		return wrap.NewNoDepWrapper(viper.GetString("package"), s)
+	case "afero":
+		return wrap.NewAferoWrapper(viper.GetString("package"), s)
+	default:
+		logrus.Errorf("Invalid wrapper type: %s", strings.ToLower(viper.GetString("wrapper")))
+		cmd.Help()
+		return nil
+	}
+}
+
 func mainCommand(cmd *cobra.Command, args []string) {
 	switch viper.GetString("file") {
 	case "-":
@@ -115,37 +151,13 @@ func mainCommand(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	var s shrink.Shrinker
-	switch strings.ToLower(viper.GetString("compression")) {
-	case "none", "nocompress":
-		s = shrink.NewNoShrinker()
-	case "deflate":
-		s = shrink.NewDeflateStreamShrinker()
-	case "gzip":
-		s = shrink.NewGzipStreamShrinker()
-	case "lzw":
-		s = shrink.NewLzwStreamShrinker()
-	case "snappy":
-		s = shrink.NewSnappyShrinker()
-	case "snappystream":
-		s = shrink.NewSnappyStreamShrinker()
-	case "zlib":
-		s = shrink.NewZlibStreamShrinker()
-	default:
-		logrus.Errorf("Invalid compression type: %s", strings.ToLower(viper.GetString("compression")))
-		cmd.Help()
+	s := getShrinker(cmd)
+	if s == nil {
 		return
 	}
 
-	var e wrap.Wrapper
-	switch strings.ToLower(viper.GetString("wrapper")) {
-	case "none", "nodep":
-		e = wrap.NewNoDepWrapper(viper.GetString("package"), s)
-	case "afero":
-		e = wrap.NewAferoWrapper(viper.GetString("package"), s)
-	default:
-		logrus.Errorf("Invalid wrapper type: %s", strings.ToLower(viper.GetString("wrapper")))
-		cmd.Help()
+	e := getWrapper(cmd, s)
+	if s == nil {
 		return
 	}
 

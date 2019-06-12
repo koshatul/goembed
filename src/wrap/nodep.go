@@ -215,7 +215,7 @@ func (b *NoDepWrapper) Render(w io.Writer) error {
 		children := []jen.Code{}
 		for f, v := range b.files {
 			if !strings.EqualFold(filename, f) && strings.HasPrefix(f, filename) {
-				ft := strings.TrimLeft(f[len(filename):len(f)], "/")
+				ft := strings.TrimLeft(f[len(filename):], "/")
 				if !strings.Contains(ft, "/") {
 					children = append(children, jen.Op("&").Id("assetFileInfo").Values(jen.Id("f").Op(":").Op("&").Id("assetFile").Values(jen.Id("assetFileData").Op(":").Id(v))))
 				}

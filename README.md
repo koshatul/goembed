@@ -38,6 +38,27 @@ func main() {
 
 Then the filesystem should be visible from http://localhost:8080/
 
+```
+Usage:
+  goembed [flags]
+  goembed [command]
+
+Available Commands:
+  help        Help about any command
+  version     Print the version
+
+Flags:
+  -c, --compression string   Compression to use, options are 'deflate', 'gzip', 'lzw', 'snappy', 'snappystream', 'zlib' or 'none' (default "snappy")
+  -d, --debug                Debug output
+  -f, --file string          Output file, or '-' for STDOUT (default "-")
+  -h, --help                 help for goembed
+  -p, --package string       golang package name for file (default: based on output file directory)
+      --version              version for goembed
+  -w, --wrapper string       Wrapper to use, options are 'none' or 'afero' (default "none")
+
+Use "goembed [command] --help" for more information about a command.
+```
+
 ## Examples
 
 Examples are kept in the [examples](https://github.com/koshatul/goembed/tree/master/examples) directory, the usage above is the webserver example.

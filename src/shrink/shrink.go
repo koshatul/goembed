@@ -10,7 +10,8 @@ type Shrinker interface {
 	Compress(file goembed.File) ([]jen.Code, error)
 	Header() []jen.Code
 	Decompressor() []jen.Code
-	// AddDir(dir string) error
-	// AddFile(filename string, file io.Reader) error
-	// Render(w io.Writer) error
+	IsStream() bool
+	IsReaderWithError() bool
+	Reader(params ...jen.Code) jen.Code
+	ReaderWithError(params ...jen.Code) jen.Code
 }

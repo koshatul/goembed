@@ -1,18 +1,9 @@
 package wrap
 
-// // Wrapper is the interface that provides a method for handling the data.
-// type Wrapper interface {
-// 	// AddFile(filename string, file io.Reader) error
-// 	// AddDir(dir string) error
-// 	AddFile(filename string, file goembed.File) error
-// 	Render(w io.Writer) error
-// }
-
 import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"log"
 	"strings"
 	"time"
 
@@ -37,12 +28,15 @@ func NewNoDepWrapper(packageName string, shrinker shrink.Shrinker) Wrapper {
 	f.HeaderComment("Code generated - DO NOT EDIT.")
 	f.Line()
 
-	f.Comment("Fs is the filesystem containing the assets embedded in this package.").Line().Var().Id("Fs").Id("fs")
+	f.Add(shrinker.Header()...)
+
+	f.Comment("Fs is the filesystem containing the assets embedded in this package.").Line().Var().Id("Fs").Qual("net/http", "FileSystem").Op("=").Op("&").Id("fs").Values()
 
 	f.Type().Id("assetFileData").Struct(
 		jen.Id("name").String(),
 		jen.Id("data").Index().Byte(),
 		jen.Id("dir").Bool(),
+		jen.Id("size").Int64(),
 		jen.Id("modtime").Qual("time", "Time"),
 		jen.Id("children").Index().Qual("os", "FileInfo"),
 	)
@@ -77,14 +71,15 @@ func NewNoDepWrapper(packageName string, shrinker shrink.Shrinker) Wrapper {
 	)
 
 	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("Name").Params().Params(jen.String()).Block(jen.Return(jen.Id("a").Dot("f").Dot("name")))
-	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("Size").Params().Params(jen.Int64()).Block(jen.Return(jen.Id("int64").Call(jen.Id("len").Call(jen.Id("a").Dot("f").Dot("data")))))
+	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("Size").Params().Params(jen.Int64()).Block(jen.Return(jen.Id("a").Dot("f").Dot("size")))
 	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("Mode").Params().Params(jen.Qual("os", "FileMode")).Block(jen.Return(jen.Lit(0444)))
 	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("ModTime").Params().Params(jen.Qual("time", "Time")).Block(jen.Return(jen.Id("a").Dot("f").Dot("modtime")))
 	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("IsDir").Params().Params(jen.Bool()).Block(jen.Return(jen.Id("a").Dot("f").Dot("dir")))
 	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("Sys").Params().Params(jen.Interface()).Block(jen.Return(jen.Nil()))
 
 	f.Type().Id("assetFile").Struct(
-		jen.Op("*").Qual("bytes", "Reader"),
+		jen.Qual("io", "Reader"),
+		jen.Qual("io", "Seeker"),
 		jen.Op("*").Id("assetFileData"),
 	)
 
@@ -103,9 +98,12 @@ func NewNoDepWrapper(packageName string, shrinker shrink.Shrinker) Wrapper {
 		jen.Return(jen.Nil()),
 	)
 
-	f.Func().Id("decode").Params(jen.Id("input").Index().Byte()).Params(jen.Index().Byte()).Block(
-		shrinker.Decompressor()...,
-	)
+	decodeFunc := shrinker.Decompressor()
+	if decodeFunc != nil {
+		f.Func().Id("decode").Params(jen.Id("input").Index().Byte()).Params(jen.Index().Byte()).Block(
+			decodeFunc...,
+		)
+	}
 
 	return &NoDepWrapper{
 		file:           f,
@@ -117,7 +115,7 @@ func NewNoDepWrapper(packageName string, shrinker shrink.Shrinker) Wrapper {
 }
 
 func (b *NoDepWrapper) addDir(dir string) {
-	for name, _ := range b.files {
+	for name := range b.files {
 		if strings.EqualFold(dir, name) {
 			return
 		}
@@ -126,10 +124,10 @@ func (b *NoDepWrapper) addDir(dir string) {
 	if strings.EqualFold(dir, "") {
 		return
 	}
+
 	b64filename := base64.RawStdEncoding.EncodeToString([]byte(dir))
 	fileid := fmt.Sprintf("dir%s", b64filename)
 	b.files[dir] = fileid
-
 	b.children[dir] = jen.Null()
 
 	b.file.Var().Id(fileid).Op("*").Id("assetFileData").Op("=").Op("&").Id("assetFileData").Values(
@@ -146,12 +144,17 @@ func (b *NoDepWrapper) addDir(dir string) {
 func (b *NoDepWrapper) AddFile(filename string, file goembed.File) error {
 	b.addDir("/")
 
+	sp := strings.Split(filename, "/")
+
+	for len(sp) > 0 {
+		sp = sp[:len(sp)-1]
+		b.addDir(strings.Join(sp, "/"))
+	}
+
 	v, err := b.shrinker.Compress(file)
 	if err != nil {
 		return err
 	}
-
-	// logrus.WithField("compression", "none").Debugf("Wrote %d bytes to static asset", len(v))
 
 	b64filename := base64.RawStdEncoding.EncodeToString([]byte(filename))
 
@@ -162,7 +165,8 @@ func (b *NoDepWrapper) AddFile(filename string, file goembed.File) error {
 	b.file.Var().Id(fileid).Op("*").Id("assetFileData").Op("=").Op("&").Id("assetFileData").Values(
 		jen.Id("name").Op(":").Lit(filename),
 		jen.Id("dir").Op(":").Lit(false),
-		jen.Id("modtime").Op(":").Qual("time", "Unix").Params(jen.Lit(time.Now().Unix()), jen.Lit(0)), //TODO get modtime from source file
+		jen.Id("size").Op(":").Lit(file.Stat.Size()),
+		jen.Id("modtime").Op(":").Qual("time", "Unix").Params(jen.Lit(file.Stat.ModTime().Unix()), jen.Lit(0)),
 		jen.Id("data").Op(":").Index().Byte().Values(v...),
 	)
 
@@ -174,27 +178,39 @@ func (b *NoDepWrapper) AddFile(filename string, file goembed.File) error {
 func (b *NoDepWrapper) Render(w io.Writer) error {
 	caseList := []jen.Code{}
 	for filename, file := range b.files {
-		caseList = append(
-			caseList,
-			jen.Case(jen.Lit(filename)).Block(
-				jen.Return(
-					jen.Op("&").Id("assetFile").Values(
-						jen.Id("Reader").Op(":").Qual("bytes", "NewReader").Params(jen.Id(file).Dot("data")),
-						jen.Id("assetFileData").Op(":").Id(file),
+		if b.shrinker.IsReaderWithError() {
+			caseList = append(
+				caseList,
+				jen.Case(jen.Lit(filename)).Block(
+					jen.List(jen.Id("r"), jen.Id("err")).Op(":=").Add(b.shrinker.ReaderWithError(jen.Id(file).Dot("data"))),
+					jen.Return(
+						jen.Op("&").Id("assetFile").Values(
+							jen.Id("Reader").Op(":").Id("r"),
+							jen.Id("assetFileData").Op(":").Id(file),
+						),
+						jen.Id("err"),
 					),
-					jen.Nil(),
 				),
-			),
-		)
+			)
+		} else {
+			caseList = append(
+				caseList,
+				jen.Case(jen.Lit(filename)).Block(
+					jen.Return(
+						jen.Op("&").Id("assetFile").Values(
+							jen.Id("Reader").Op(":").Add(b.shrinker.Reader(jen.Id(file).Dot("data"))),
+							jen.Id("assetFileData").Op(":").Id(file),
+						),
+						jen.Nil(),
+					),
+				),
+			)
+		}
 
-		log.Printf("filename: %s", filename)
 		children := []jen.Code{}
 		for f, v := range b.files {
-			log.Printf("filename:'%s', f:'%s', v:'%s'", filename, f, v)
 			if !strings.EqualFold(filename, f) && strings.HasPrefix(f, filename) {
-				log.Printf("f:'%s' filename:'%s'", f, filename)
-				log.Printf("f(%d:%d)", len(filename), len(f))
-				ft := f[len(filename):len(f)]
+				ft := strings.TrimLeft(f[len(filename):len(f)], "/")
 				if !strings.Contains(ft, "/") {
 					children = append(children, jen.Op("&").Id("assetFileInfo").Values(jen.Id("f").Op(":").Op("&").Id("assetFile").Values(jen.Id("assetFileData").Op(":").Id(v))))
 				}

@@ -1,13 +1,5 @@
 package wrap
 
-// // Wrapper is the interface that provides a method for handling the data.
-// type Wrapper interface {
-// 	// AddFile(filename string, file io.Reader) error
-// 	// AddDir(dir string) error
-// 	AddFile(filename string, file goembed.File) error
-// 	Render(w io.Writer) error
-// }
-
 import (
 	"encoding/base64"
 	"fmt"
@@ -32,9 +24,14 @@ func NewAferoWrapper(packageName string, shrinker shrink.Shrinker) Wrapper {
 	f.Line()
 	f.Comment("Fs is the filesystem containing the assets embedded in this package.").Line().Var().Id("Fs").Qual("github.com/spf13/afero", "Fs")
 
-	f.Func().Id("decode").Params(jen.Id("input").Index().Byte()).Params(jen.Index().Byte()).Block(
-		shrinker.Decompressor()...,
-	)
+	f.Add(shrinker.Header()...)
+
+	decodeFunc := shrinker.Decompressor()
+	if decodeFunc != nil {
+		f.Func().Id("decode").Params(jen.Id("input").Index().Byte()).Params(jen.Index().Byte()).Block(
+			decodeFunc...,
+		)
+	}
 
 	return &AferoWrapper{
 		file:     f,
@@ -73,16 +70,61 @@ func (b *AferoWrapper) Render(w io.Writer) error {
 		// jen.Var().Id("o").Index().Byte(),
 	}
 
-	for filename, file := range b.files {
+	useDecodeFunc := b.shrinker.Decompressor()
+	if b.shrinker.IsReaderWithError() {
 		v = append(
 			v,
-			jen.Qual("github.com/spf13/afero", "WriteFile").Call(
-				jen.Id("Fs"),
-				jen.Lit(filename),
-				jen.Id("decode").Params(jen.Id(file)),
-				jen.Qual("os", "ModePerm"),
-			),
+			jen.Var().Id("o").Qual("io", "Reader"),
+			jen.Var().Id("err").Error(),
 		)
+	}
+
+	for filename, file := range b.files {
+		if b.shrinker.IsStream() {
+			if b.shrinker.IsReaderWithError() {
+				v = append(
+					v,
+					jen.List(jen.Id("o"), jen.Id("err")).Op("=").Add(b.shrinker.ReaderWithError(jen.Id(file))),
+					jen.If(jen.Id("err").Op("==").Nil()).Block(
+						jen.Qual("github.com/spf13/afero", "WriteReader").Call(
+							jen.Id("Fs"),
+							jen.Lit(filename),
+							jen.Add(jen.Id("o")),
+						),
+					),
+				)
+			} else {
+				v = append(
+					v,
+					jen.Qual("github.com/spf13/afero", "WriteReader").Call(
+						jen.Id("Fs"),
+						jen.Lit(filename),
+						jen.Add(b.shrinker.Reader(jen.Id(file))),
+					),
+				)
+			}
+		} else if useDecodeFunc != nil {
+			v = append(
+				v,
+				jen.Qual("github.com/spf13/afero", "WriteFile").Call(
+					jen.Id("Fs"),
+					jen.Lit(filename),
+					jen.Id("decode").Params(jen.Id(file)),
+					jen.Qual("os", "ModePerm"),
+				),
+			)
+		} else {
+			v = append(
+				v,
+				jen.Qual("github.com/spf13/afero", "WriteFile").Call(
+					jen.Id("Fs"),
+					jen.Lit(filename),
+					jen.Id(file),
+					jen.Qual("os", "ModePerm"),
+				),
+			)
+
+		}
 	}
 
 	b.file.Func().Id("init").Params().Block(

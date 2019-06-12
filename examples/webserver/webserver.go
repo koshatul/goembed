@@ -12,8 +12,8 @@ func main() {
 	var fileserver http.Handler
 	if v, ok := assets.Fs.(http.FileSystem); ok {
 		fileserver = http.FileServer(v)
-	} else {
-		httpFs := afero.NewHttpFs(assets.Fs)
+	} else if v, ok := assets.Fs.(afero.Fs); ok {
+		httpFs := afero.NewHttpFs(v)
 		fileserver = http.FileServer(httpFs)
 	}
 	http.Handle("/", http.StripPrefix("/", fileserver))

@@ -26,9 +26,13 @@ func init() {
 	viper.BindPFlag("package", rootCmd.PersistentFlags().Lookup("package"))
 	viper.BindEnv("package", "PACKAGE_NAME")
 
-	rootCmd.PersistentFlags().StringP("compression", "c", "snappy", "Compression to use, options are 'deflate', 'gzip', 'lzw', 'snappy', 'zlib' or 'none'")
+	rootCmd.PersistentFlags().StringP("compression", "c", "snappy", "Compression to use, options are 'deflate', 'gzip', 'lzw', 'snappy', 'snappystream', 'zlib' or 'none'")
 	viper.BindPFlag("compression", rootCmd.PersistentFlags().Lookup("compression"))
 	viper.BindEnv("compression", "COMPRESSION")
+
+	rootCmd.PersistentFlags().StringP("wrapper", "w", "none", "Wrapper to use, options are 'none' or 'afero'")
+	viper.BindPFlag("wrapper", rootCmd.PersistentFlags().Lookup("wrapper"))
+	viper.BindEnv("wrapper", "WRAPPER")
 }
 
 func main() {

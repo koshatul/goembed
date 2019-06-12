@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/koshatul/goembed/src/shrink"
 
@@ -114,7 +115,43 @@ func mainCommand(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	e := wrap.NewNoDepWrapper(viper.GetString("package"), shrink.NewSnappyShrinker())
+	var s shrink.Shrinker
+	switch strings.ToLower(viper.GetString("compression")) {
+	case "none", "nocompress":
+		s = shrink.NewNoShrinker()
+	case "deflate":
+		s = shrink.NewDeflateStreamShrinker()
+	case "gzip":
+		s = shrink.NewGzipStreamShrinker()
+	case "lzw":
+		s = shrink.NewLzwStreamShrinker()
+	case "snappy":
+		s = shrink.NewSnappyShrinker()
+	case "snappystream":
+		s = shrink.NewSnappyStreamShrinker()
+	case "zlib":
+		s = shrink.NewZlibStreamShrinker()
+	default:
+		logrus.Errorf("Invalid compression type: %s", strings.ToLower(viper.GetString("compression")))
+		cmd.Help()
+		return
+	}
+
+	// e := wrap.NewNoDepWrapper(viper.GetString("package"), shrink.NewNoShrinker())
+	// e := wrap.NewAferoWrapper(viper.GetString("package"), shrink.NewSnappyShrinker())
+	// e := wrap.NewNoDepWrapper(viper.GetString("package"), shrink.NewSnappyStreamShrinker())
+
+	var e wrap.Wrapper
+	switch strings.ToLower(viper.GetString("wrapper")) {
+	case "none", "nodep":
+		e = wrap.NewNoDepWrapper(viper.GetString("package"), s)
+	case "afero":
+		e = wrap.NewAferoWrapper(viper.GetString("package"), s)
+	default:
+		logrus.Errorf("Invalid wrapper type: %s", strings.ToLower(viper.GetString("wrapper")))
+		cmd.Help()
+		return
+	}
 	// var e embed.Builder
 	// switch strings.ToLower(viper.GetString("compression")) {
 	// case "none", "nocompress":

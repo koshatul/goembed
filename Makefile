@@ -6,7 +6,9 @@ GIT_TAG ?= $(shell git tag -l --merged $(GIT_HASH) | tail -n1)
 APP_VERSION ?= $(if $(TRAVIS_TAG),$(TRAVIS_TAG),$(if $(GIT_TAG),$(GIT_TAG),$(GIT_HASH)))
 APP_DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-MATRIX_COMPRESSION ?= nocompress deflate gzip lzw snappy zlib
+MATRIX_WRAPPER ?= nodep afero
+MATRIX_COMPRESSION ?= deflate gzip lzw none snappy snappystream zlib
+# MATRIX_COMPRESSION ?= nocompress deflate gzip lzw snappy zlib
 
 _TEST_FILES := $(shell find ./test -type f)
 _TEST_CASES := $(patsubst %.sh,%,$(patsubst ./test-cases/%,%,$(shell find ./test-cases -type f -name '*.sh')))
@@ -44,14 +46,14 @@ run: artifacts/build/debug/$(GOOS)/$(GOARCH)/goembed
 	$< $(RUN_ARGS)
 
 
-.SECONDARY: $(addsuffix /compression.go,$(addprefix artifacts/generated/compression/,$(MATRIX_COMPRESSION)))
+.SECONDARY: $(foreach COMPRESSION,$(MATRIX_COMPRESSION),$(foreach WRAPPER,$(MATRIX_WRAPPER),artifacts/generated/compression/$(WRAPPER)/$(COMPRESSION)/compression.go))
 
 .PHONY: test-compression
-test-compression: $(addsuffix /test.patch,$(addprefix artifacts/generated/compression/,$(MATRIX_COMPRESSION)))
+test-compression: $(foreach COMPRESSION,$(MATRIX_COMPRESSION),$(foreach WRAPPER,$(MATRIX_WRAPPER),artifacts/generated/compression/$(WRAPPER)/$(COMPRESSION)/test.patch))
 
-artifacts/generated/compression/%/compression.go: src/embed/%.go artifacts/generated/compression/%/main.go $(_TEST_FILES)
+artifacts/generated/compression/%/compression.go: artifacts/generated/compression/%/main.go $(_TEST_FILES)
 	@mkdir -p "$(@D)"
-	make run RUN_ARGS="./test -c "$(*)" -f "$(@)" -p "main" -d"
+	make run RUN_ARGS="./test -c "$(notdir $(*))" -w "$(subst /,,$(dir $(*)))" -f "$(@)" -p "main" -d"
 	go test "$(@)"
 
 artifacts/generated/compression/%/main.go: test/main.go.src
@@ -97,7 +99,7 @@ examples: examples/webserver/assets/assets.go
 
 examples/webserver/assets/assets.go:
 	@mkdir -p "$(@D)"
-	make run RUN_ARGS="./test -c nocompress_nodep -f "$(@)" -p 'assets'"
+	make run RUN_ARGS="./test -c nocompress -w nodep -f "$(@)" -p 'assets'"
 
 .PHONY: test-cases
 test-cases: $(addprefix artifacts/test-cases/,$(_TEST_CASES))

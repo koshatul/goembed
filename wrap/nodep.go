@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/dave/jennifer/jen"
-	"github.com/koshatul/goembed/src/goembed"
-	"github.com/koshatul/goembed/src/shrink"
+	"github.com/koshatul/goembed/goembed"
+	"github.com/koshatul/goembed/shrink"
 	"github.com/sirupsen/logrus"
 )
 

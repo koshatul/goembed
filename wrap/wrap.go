@@ -3,7 +3,7 @@ package wrap
 import (
 	"io"
 
-	"github.com/koshatul/goembed/src/goembed"
+	"github.com/koshatul/goembed/goembed"
 )
 
 // Wrapper is the interface that provides a method for handling the data.

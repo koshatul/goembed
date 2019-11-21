@@ -2,12 +2,10 @@ MATRIX_OS ?= darwin linux windows
 MATRIX_ARCH ?= amd64 386
 
 GIT_HASH ?= $(shell git show -s --format=%h)
-GIT_TAG ?= $(shell git tag -l --merged $(GIT_HASH) | tail -n1)
-APP_VERSION ?= $(if $(TRAVIS_TAG),$(TRAVIS_TAG),$(if $(GIT_TAG),$(GIT_TAG),$(GIT_HASH)))
 APP_DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-DEBUG_ARGS = --ldflags "-X main.version=$(APP_VERSION)-debug -X main.gitHash=$(GIT_HASH) -X main.buildDate=$(APP_DATE)"
-RELEASE_ARGS = -v -ldflags "-X main.version=$(APP_VERSION) -X main.gitHash=$(GIT_HASH) -X main.buildDate=$(APP_DATE) -s -w"
+GO_DEBUG_ARGS = -v -ldflags "-X main.version=$(GO_APP_VERSION)+debug -X main.gitHash=$(GIT_HASH) -X main.buildDate=$(APP_DATE)"
+GO_RELEASE_ARGS = -v -ldflags "-X main.version=$(GO_APP_VERSION) -X main.gitHash=$(GIT_HASH) -X main.buildDate=$(APP_DATE) -s -w" -tags release
 
 MATRIX_WRAPPER ?= nodep afero
 MATRIX_COMPRESSION ?= deflate gzip lzw none snappy snappystream zlib
@@ -16,13 +14,15 @@ MATRIX_COMPRESSION ?= deflate gzip lzw none snappy snappystream zlib
 _TEST_FILES := $(shell find ./test -type f)
 _TEST_CASES := $(patsubst %.sh,%,$(patsubst ./test-cases/%,%,$(shell find ./test-cases -type f -name '*.sh')))
 
--include artifacts/make/go/Makefile
+-include .makefiles/Makefile
+-include .makefiles/pkg/go/v1/Makefile
+-include .makefiles/pkg/protobuf/v1/Makefile
 
-artifacts/make/%/Makefile:
-	curl -sf https://jmalloc.github.io/makefiles/fetch | bash /dev/stdin $*
+.makefiles/%:
+	@curl -sfL https://makefiles.dev/v1 | bash /dev/stdin "$@"
 
 .PHONY: install
-install: vendor $(REQ) $(_SRC) | $(USE)
+install: artifacts/build/debug/$(GOHOSTOS)/$(GOHOSTARCH)/goembed $(REQ) $(_SRC) | $(USE)
 	$(eval PARTS := $(subst /, ,$*))
 	$(eval BUILD := $(word 1,$(PARTS)))
 	$(eval OS    := $(word 2,$(PARTS)))
@@ -30,7 +30,7 @@ install: vendor $(REQ) $(_SRC) | $(USE)
 	$(eval BIN   := $(word 4,$(PARTS)))
 	$(eval ARGS  := $(if $(findstring debug,$(BUILD)),$(DEBUG_ARGS),$(RELEASE_ARGS)))
 
-	CGO_ENABLED=$(CGO_ENABLED) GOOS="$(OS)" GOARCH="$(ARCH)" go install $(ARGS) "./src/cmd/..."
+	CGO_ENABLED=$(CGO_ENABLED) GOOS="$(OS)" GOARCH="$(ARCH)" go install $(ARGS) "./cmd/..."
 
 .PHONY: upx
 upx: $(patsubst artifacts/build/%,artifacts/upx/%.upx,$(addprefix artifacts/build/release/,$(_STEMS)))
@@ -45,9 +45,8 @@ artifacts/upx/%.upx: artifacts/build/%
 	upx -o "$@" "$<"
 
 .PHONY: run
-run: artifacts/build/debug/$(GOOS)/$(GOARCH)/goembed
-	$< $(RUN_ARGS)
-
+run: artifacts/build/debug/$(GOHOSTOS)/$(GOHOSTARCH)/goembed
+	"$<" $(RUN_ARGS)
 
 .SECONDARY: $(foreach COMPRESSION,$(MATRIX_COMPRESSION),$(foreach WRAPPER,$(MATRIX_WRAPPER),artifacts/generated/compression/$(WRAPPER)/$(COMPRESSION)/compression.go))
 

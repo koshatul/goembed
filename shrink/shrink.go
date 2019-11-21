@@ -2,7 +2,7 @@ package shrink
 
 import (
 	"github.com/dave/jennifer/jen"
-	"github.com/koshatul/goembed/src/goembed"
+	"github.com/koshatul/goembed/goembed"
 )
 
 // Shrinker is the interface that provides a compression method for the data.

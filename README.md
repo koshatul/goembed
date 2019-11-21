@@ -25,7 +25,7 @@ Supported wrappers:
 
 Install the command line tool first.
 
-	go get github.com/koshatul/goembed/src/...
+	go get github.com/koshatul/goembed/cmd/...
 
 goembed has sane defaults and will safely generate a go package from a directory or individual list of files.
 

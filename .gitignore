@@ -13,5 +13,6 @@
 
 /artifacts
 /vendor
+/.makefiles
 
 /.vscode

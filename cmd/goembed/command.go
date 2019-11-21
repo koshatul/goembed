@@ -7,10 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/koshatul/goembed/src/shrink"
-
-	"github.com/koshatul/goembed/src/goembed"
-	"github.com/koshatul/goembed/src/wrap"
+	"github.com/koshatul/goembed/shrink"
+	"github.com/koshatul/goembed/goembed"
+	"github.com/koshatul/goembed/wrap"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"

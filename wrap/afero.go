@@ -6,8 +6,8 @@ import (
 	"io"
 
 	"github.com/dave/jennifer/jen"
-	"github.com/koshatul/goembed/src/goembed"
-	"github.com/koshatul/goembed/src/shrink"
+	"github.com/koshatul/goembed/goembed"
+	"github.com/koshatul/goembed/shrink"
 )
 
 // AferoWrapper is a Wrapper compatible struct that uses afero for the file system

@@ -2,7 +2,7 @@ package shrink
 
 import (
 	"github.com/dave/jennifer/jen"
-	"github.com/koshatul/goembed/src/goembed"
+	"github.com/koshatul/goembed/goembed"
 	"github.com/sirupsen/logrus"
 )
 

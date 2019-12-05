@@ -61,6 +61,11 @@ $(GOMETALINTER):
 	GO111MODULE=off GOBIN="$(shell pwd -P)/$(@D)" go get -u github.com/alecthomas/gometalinter
 	GO111MODULE=off GOBIN="$(shell pwd -P)/$(@D)" $(GOMETALINTER) --install 2>/dev/null
 
+GOLANGCILINT := artifacts/golangci-lint/bin/golangci-lint
+$(GOLANGCILINT):
+	@mkdir -p "$(shell pwd -P)/$(@D)"
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "$(shell pwd -P)/$(dir $(@D))bin" v1.21.0
+
 .PHONY: test-compression
 test-compression: $(foreach COMPRESSION,$(MATRIX_COMPRESSION),$(foreach WRAPPER,$(MATRIX_WRAPPER),artifacts/generated/compression/$(WRAPPER)/$(COMPRESSION)/test.patch))
 
@@ -85,7 +90,7 @@ artifacts/generated/compression/%/test.patch: artifacts/generated/compression/%/
 	@mkdir -p "$(@D)"
 	diff -u "test/index.html" "$(@D)/index.html" | tee "$(@)"
 
-artifacts/generated/compression/%/lint: $(MISSPELL) $(GOMETALINTER)
+artifacts/generated/compression/%/lint: $(MISSPELL) $(GOLANGCILINT)
 	@mkdir -p "$(@D)"
 
 	go vet "./$(@D)/." | tee "$@"
@@ -93,19 +98,7 @@ artifacts/generated/compression/%/lint: $(MISSPELL) $(GOMETALINTER)
 
 	$(MISSPELL) -w -error -locale US "./$(@D)/." | tee -a "$@"
 
-	$(GOMETALINTER) --disable-all --deadline=60s \
-		--enable=vet \
-		--enable=vetshadow \
-		--enable=ineffassign \
-		--enable=deadcode \
-		--enable=gofmt \
-		"./$(@D)/." | tee -a "$@"
-
-	-$(GOMETALINTER) --disable-all --deadline=60s --cyclo-over=15 \
-		--enable=golint \
-		--enable=goconst \
-		--enable=gocyclo \
-		"./$(@D)/." | tee -a "$@"
+	$(GOLANGCILINT) run ./... | tee -a "$@"
 
 .PHONY: examples
 examples: examples/webserver/assets/assets.go examples/webserver-afero/assets/assets.go

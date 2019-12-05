@@ -43,8 +43,9 @@ func (b *SnappyStreamShrinker) Compress(file goembed.File) ([]jen.Code, error) {
 	// 	return nil, err
 	// }
 	bufOut := &bytes.Buffer{}
-	cmpOut := snappy.NewWriter(bufOut)
+	cmpOut := snappy.NewBufferedWriter(bufOut)
 	w, err := io.Copy(cmpOut, file)
+	cmpOut.Close()
 	if err != nil {
 		return nil, err
 	}

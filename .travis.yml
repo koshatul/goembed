@@ -1,7 +1,6 @@
 language: go
 go:
-- '1.12'
-- '1.11'
+- '1.13'
 - tip
 script:
 - make ci
@@ -15,7 +14,6 @@ matrix:
   fast_finish: true
   allow_failures:
   - go: tip
-  - go: '1.11'
 deploy:
   provider: releases
   skip_cleanup: true
@@ -29,6 +27,6 @@ deploy:
   - artifacts/archives/goembed-linux-386.tar.gz
   - artifacts/archives/goembed-windows-amd64.zip
   - artifacts/archives/goembed-windows-386.zip
-  go: '1.12'
+  go: '1.13'
   on:
     tags: true

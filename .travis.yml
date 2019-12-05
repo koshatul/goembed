@@ -19,14 +19,9 @@ deploy:
   skip_cleanup: true
   api_key:
     secure: fWqmF0e/Cbn5VximzwYZogkbmwMSISL/7FCsp/7XQ/ISOx9jBgn2tC0ncg+rGXBsjblmGvdof4XWEhqcvaHYBZOo6cj9HXntCZ0Th6N9C7oCGGRPVAk5GuNHkbcNhiKf0veOXxGtKwvNo4pL76xHX4sdwf1zrdmgYW/Q8gStkTihksnXdRUzTsL2CE0Yhpnapd2w1b0Mz36da+RDvelV0Ybe94xv6urNeaKrWm4H4XSug2jNspRsBlUbdXC4M5xjapiKl6PTcCoxumwCbyoa67AW5oUSvl4nmM7SktpzoRNd5d88gS3x7cThNb/Ju47eYg26pKyGA4nxyomTEqJ7XPqYdQ/17SIx8xONNdF9+7F6kV8B0+A6Y7K4+KI6pBb50vGDj8fJ1W0J+3LbVydsQItm5rYps8ph2hFPOLgEkIxm0SYD/DYWN7U29JT721eGhQRqsp5jqvef/BaCQPKdpSfAJCCuVd2N66X37h/GtDGYxXX7w+tWGaC9GA4nMfnwP9poWKH9FETfliUuMHcQwYvg/BR/oUkVZDZT1oBT5yBRDKgxnLfRP5O1wPAO/pvVDtxZ/lowmt22LDLb0PiR49YVgL7Rcm0GNRN29TExURKddni/kyIcoFTQ7aVYa0x2KoljUCDXfg92AEmzTQ0t7ilbuPDBcV75Nc4iL3sRHXo=
+  file_glob: true
   file:
-  - artifacts/archives/goembed-darwin-amd64.tar.gz
-  - artifacts/archives/goembed-darwin-386.tar.gz
-  - artifacts/archives/goembed-linux-amd64.tar.gz
-  - artifacts/archives/goembed-linux-arm.tar.gz
-  - artifacts/archives/goembed-linux-386.tar.gz
-  - artifacts/archives/goembed-windows-amd64.zip
-  - artifacts/archives/goembed-windows-386.zip
+  - artifacts/archives/*
   go: '1.13'
   on:
     tags: true

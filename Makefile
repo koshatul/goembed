@@ -1,5 +1,5 @@
-MATRIX_OS ?= darwin linux windows
-MATRIX_ARCH ?= amd64 386
+GO_MATRIX_OS ?= darwin linux windows
+GO_MATRIX_ARCH ?= amd64 386
 
 GIT_HASH ?= $(shell git show -s --format=%h)
 APP_DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")

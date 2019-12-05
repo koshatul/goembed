@@ -32,7 +32,7 @@ install: artifacts/build/debug/$(GOHOSTOS)/$(GOHOSTARCH)/goembed $(REQ) $(_SRC) 
 	CGO_ENABLED=$(CGO_ENABLED) GOOS="$(OS)" GOARCH="$(ARCH)" go install $(ARGS) "./cmd/..."
 
 .PHONY: upx
-upx: $(patsubst artifacts/build/%,artifacts/upx/%.upx,$(addprefix artifacts/build/release/,$(_STEMS)))
+upx: $(patsubst artifacts/build/%,artifacts/upx/%.upx,$(_GO_RELEASE_TARGETS_ALL))
 
 .PHONY: clean
 clean::
@@ -114,5 +114,5 @@ examples/webserver-afero/assets/assets.go:
 .PHONY: test-cases
 test-cases: $(addprefix artifacts/test-cases/,$(_TEST_CASES))
 
-artifacts/test-cases/%: artifacts/build/debug/$(GOOS)/$(GOARCH)/goembed
-	CMD="artifacts/build/debug/$(GOOS)/$(GOARCH)/goembed" TEST_PATH="$(shell pwd)/test" bash "./test-cases/$(*).sh"
+artifacts/test-cases/%: artifacts/build/debug/$(GOHOSTOS)/$(GOHOSTARCH)/goembed
+	CMD="artifacts/build/debug/$(GOHOSTOS)/$(GOHOSTARCH)/goembed" TEST_PATH="$(shell pwd)/test" bash "./test-cases/$(*).sh"

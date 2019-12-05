@@ -49,6 +49,18 @@ run: artifacts/build/debug/$(GOHOSTOS)/$(GOHOSTARCH)/goembed
 
 .SECONDARY: $(foreach COMPRESSION,$(MATRIX_COMPRESSION),$(foreach WRAPPER,$(MATRIX_WRAPPER),artifacts/generated/compression/$(WRAPPER)/$(COMPRESSION)/compression.go))
 
+MISSPELL := artifacts/misspell/bin/misspell
+$(MISSPELL):
+	@mkdir -p "$(shell pwd -P)/$(@D)"
+	GO111MODULE=off GOBIN="$(shell pwd -P)/$(@D)" go get -u github.com/client9/misspell/cmd/misspell
+
+GOMETALINTER := artifacts/gometalinter/bin/gometalinter
+.PRECIOUS: $(GOMETALINTER)
+$(GOMETALINTER):
+	@mkdir -p "$(shell pwd -P)/$(@D)"
+	GO111MODULE=off GOBIN="$(shell pwd -P)/$(@D)" go get -u github.com/alecthomas/gometalinter
+	GO111MODULE=off GOBIN="$(shell pwd -P)/$(@D)" $(GOMETALINTER) --install 2>/dev/null
+
 .PHONY: test-compression
 test-compression: $(foreach COMPRESSION,$(MATRIX_COMPRESSION),$(foreach WRAPPER,$(MATRIX_WRAPPER),artifacts/generated/compression/$(WRAPPER)/$(COMPRESSION)/test.patch))
 
@@ -73,7 +85,7 @@ artifacts/generated/compression/%/test.patch: artifacts/generated/compression/%/
 	@mkdir -p "$(@D)"
 	diff -u "test/index.html" "$(@D)/index.html" | tee "$(@)"
 
-artifacts/generated/compression/%/lint:
+artifacts/generated/compression/%/lint: $(MISSPELL) $(GOMETALINTER)
 	@mkdir -p "$(@D)"
 
 	go vet "./$(@D)/." | tee "$@"

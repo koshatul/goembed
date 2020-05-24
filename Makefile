@@ -14,6 +14,11 @@ MATRIX_COMPRESSION ?= deflate gzip lzw none snappy snappystream zlib
 _TEST_FILES := $(shell find ./test -type f)
 _TEST_CASES := $(patsubst %.sh,%,$(patsubst ./test-cases/%,%,$(shell find ./test-cases -type f -name '*.sh')))
 
+_GO_GTE_1_14 := $(shell expr `go version | cut -d' ' -f 3 | tr -d 'a-z' | cut -d'.' -f2` \>= 14)
+ifeq "$(_GO_GTE_1_14)" "1"
+_MODFILEARG := -modfile tools.mod
+endif
+
 -include .makefiles/Makefile
 -include .makefiles/pkg/go/v1/Makefile
 
@@ -48,23 +53,6 @@ run: artifacts/build/debug/$(GOHOSTOS)/$(GOHOSTARCH)/goembed
 	"$<" $(RUN_ARGS)
 
 .SECONDARY: $(foreach COMPRESSION,$(MATRIX_COMPRESSION),$(foreach WRAPPER,$(MATRIX_WRAPPER),artifacts/generated/compression/$(WRAPPER)/$(COMPRESSION)/compression.go))
-
-MISSPELL := artifacts/misspell/bin/misspell
-$(MISSPELL):
-	@mkdir -p "$(shell pwd -P)/$(@D)"
-	GO111MODULE=off GOBIN="$(shell pwd -P)/$(@D)" go get -u github.com/client9/misspell/cmd/misspell
-
-GOMETALINTER := artifacts/gometalinter/bin/gometalinter
-.PRECIOUS: $(GOMETALINTER)
-$(GOMETALINTER):
-	@mkdir -p "$(shell pwd -P)/$(@D)"
-	GO111MODULE=off GOBIN="$(shell pwd -P)/$(@D)" go get -u github.com/alecthomas/gometalinter
-	GO111MODULE=off GOBIN="$(shell pwd -P)/$(@D)" $(GOMETALINTER) --install 2>/dev/null
-
-GOLANGCILINT := artifacts/golangci-lint/bin/golangci-lint
-$(GOLANGCILINT):
-	@mkdir -p "$(shell pwd -P)/$(@D)"
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "$(shell pwd -P)/$(dir $(@D))bin" v1.21.0
 
 .PHONY: test-compression
 test-compression: $(foreach COMPRESSION,$(MATRIX_COMPRESSION),$(foreach WRAPPER,$(MATRIX_WRAPPER),artifacts/generated/compression/$(WRAPPER)/$(COMPRESSION)/test.patch))
@@ -116,3 +104,43 @@ test-cases: $(addprefix artifacts/test-cases/,$(_TEST_CASES))
 
 artifacts/test-cases/%: artifacts/build/debug/$(GOHOSTOS)/$(GOHOSTARCH)/goembed
 	CMD="artifacts/build/debug/$(GOHOSTOS)/$(GOHOSTARCH)/goembed" TEST_PATH="$(shell pwd)/test" bash "./test-cases/$(*).sh"
+
+######################
+# Linting
+######################
+
+MISSPELL := artifacts/misspell/bin/misspell
+$(MISSPELL):
+	-@mkdir -p "$(MF_PROJECT_ROOT)/$(@D)"
+	GOBIN="$(MF_PROJECT_ROOT)/$(@D)" go get $(_MODFILEARG) github.com/client9/misspell/cmd/misspell
+
+GOLINT := artifacts/golint/bin/golint
+$(GOLINT):
+	-@mkdir -p "$(MF_PROJECT_ROOT)/$(@D)"
+	GOBIN="$(MF_PROJECT_ROOT)/$(@D)" go get $(_MODFILEARG) golang.org/x/lint/golint
+
+GOLANGCILINT := artifacts/golangci-lint/bin/golangci-lint
+$(GOLANGCILINT):
+	-@mkdir -p "$(MF_PROJECT_ROOT)/$(@D)"
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "$(MF_PROJECT_ROOT)/$(@D)" v1.27.0
+
+STATICCHECK := artifacts/staticcheck/bin/staticcheck
+$(STATICCHECK):
+	-@mkdir -p "$(MF_PROJECT_ROOT)/$(@D)"
+	GOBIN="$(MF_PROJECT_ROOT)/$(@D)" go get $(_MODFILEARG) honnef.co/go/tools/cmd/staticcheck
+
+.PHONY: lint
+lint:: $(MISSPELL) $(GOLINT) $(GOLANGCILINT) $(STATICCHECK)
+	go vet ./...
+	$(GOLINT) -set_exit_status ./...
+	$(MISSPELL) -w -error -locale UK ./...
+	$(GOLANGCILINT) run --enable-all --disable dupl,lll --build-tags codeanalysis ./cmd/... ./goembed/... ./shrink/... ./wrap/...
+	$(STATICCHECK) -fail "all,-U1001" -unused.whole-program ./...
+
+
+######################
+# Preload Tools
+######################
+
+.PHONY: tools
+tools: $(MISSPELL) $(GOLINT) $(GOLANGCILINT) $(STATICCHECK)

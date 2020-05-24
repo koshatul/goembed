@@ -46,18 +46,20 @@ func processDirectory(e wrap.Wrapper, s shrink.Shrinker, absPath string) error {
 func processFile(e wrap.Wrapper, s shrink.Shrinker, absPath string) error {
 	path := filepath.Base(absPath)
 	logrus.WithFields(logrus.Fields{"file": path, "compression": s.Name(), "wrapper": e.Name()}).Infof("Processing file: %s", path)
+
 	f, err := os.Open(absPath)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{"file": path, "compression": s.Name(), "wrapper": e.Name()}).Errorf("Unable to open file: %s", err)
 		return err
 	}
+
 	st, err := f.Stat()
 	if err != nil {
 		logrus.WithFields(logrus.Fields{"file": path, "compression": s.Name(), "wrapper": e.Name()}).Errorf("Unable to get file stat: %s", err)
 		return err
 	}
-	err = e.AddFile(path, goembed.NewFile(path, st, f))
-	if err != nil {
+
+	if err = e.AddFile(path, goembed.NewFile(path, st, f)); err != nil {
 		logrus.WithFields(logrus.Fields{"file": path, "compression": s.Name(), "wrapper": e.Name()}).Errorf("Unable to add file: %s", err)
 		return err
 	}
@@ -79,14 +81,12 @@ func processPath(e wrap.Wrapper, s shrink.Shrinker, path string) error {
 	}
 
 	if absStat.IsDir() {
-		err := processDirectory(e, s, absPath)
-		if err != nil {
+		if err := processDirectory(e, s, absPath); err != nil {
 			logrus.Errorf("Unable to process directory: %s", err)
 			return err
 		}
 	} else {
-		err := processFile(e, s, absPath)
-		if err != nil {
+		if err := processFile(e, s, absPath); err != nil {
 			logrus.Errorf("Unable to process file: %s", err)
 			return err
 		}
@@ -113,16 +113,20 @@ func getShrinker(cmd *cobra.Command) shrink.Shrinker {
 		return shrink.NewZlibStreamShrinker()
 	default:
 		logrus.Errorf("Invalid compression type: %s", strings.ToLower(viper.GetString("compression")))
-		cmd.Help()
+
+		_ = cmd.Help()
+
 		return nil
 	}
 }
 
 func getWrapper(cmd *cobra.Command, s shrink.Shrinker) wrap.Wrapper {
 	opts := []wrap.Option{}
+
 	if len(viper.GetStringSlice("build")) > 0 {
 		opts = append(opts, wrap.AddBuildTag(viper.GetStringSlice("build")))
 	}
+
 	switch strings.ToLower(viper.GetString("wrapper")) {
 	case "none", "nodep":
 		return wrap.NewNoDepWrapper(viper.GetString("package"), s, opts...)
@@ -130,7 +134,9 @@ func getWrapper(cmd *cobra.Command, s shrink.Shrinker) wrap.Wrapper {
 		return wrap.NewAferoWrapper(viper.GetString("package"), s, opts...)
 	default:
 		logrus.Errorf("Invalid wrapper type: %s", strings.ToLower(viper.GetString("wrapper")))
-		cmd.Help()
+
+		_ = cmd.Help()
+
 		return nil
 	}
 }
@@ -145,12 +151,11 @@ func mainCommand(cmd *cobra.Command, args []string) {
 		}
 	default:
 		if viper.GetString("package") == "" {
-			absPath, err := filepath.Abs(viper.GetString("file"))
-			if err != nil {
+			if absPath, err := filepath.Abs(viper.GetString("file")); err != nil {
 				logrus.Fatal(err)
+			} else {
+				viper.Set("package", filepath.Base(filepath.Dir(absPath)))
 			}
-			packageName := filepath.Base(filepath.Dir(absPath))
-			viper.Set("package", packageName)
 		}
 	}
 
@@ -160,7 +165,7 @@ func mainCommand(cmd *cobra.Command, args []string) {
 	}
 
 	e := getWrapper(cmd, s)
-	if s == nil {
+	if e == nil {
 		return
 	}
 
@@ -172,21 +177,21 @@ func mainCommand(cmd *cobra.Command, args []string) {
 	}
 
 	var out io.Writer
+
 	switch viper.GetString("file") {
 	case "-":
 		out = os.Stdout
 	default:
-		f, err := os.Create(viper.GetString("file"))
-		if err != nil {
+		if f, err := os.Create(viper.GetString("file")); err != nil {
 			logrus.Fatal(err)
+		} else {
+			out = f
+			defer f.Close()
 		}
-		out = f
-		defer f.Close()
 	}
 
 	err := e.Render(out)
 	if err != nil {
 		logrus.Fatal(err)
 	}
-
 }

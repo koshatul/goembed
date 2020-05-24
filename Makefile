@@ -105,11 +105,11 @@ examples: examples/webserver/assets/assets.go examples/webserver-afero/assets/as
 
 examples/webserver/assets/assets.go:
 	@mkdir -p "$(@D)"
-	make run RUN_ARGS="./test -c deflate -w nodep -f "$(@)" -p 'assets'"
+	make run RUN_ARGS="./test -c deflate -b '!codeanalysis' -w nodep -f "$(@)" -p 'assets'"
 
 examples/webserver-afero/assets/assets.go:
 	@mkdir -p "$(@D)"
-	make run RUN_ARGS="./test -c deflate -w afero -f "$(@)" -p 'assets'"
+	make run RUN_ARGS="./test -c deflate -b '!codeanalysis' -w afero -f "$(@)" -p 'assets'"
 
 .PHONY: test-cases
 test-cases: $(addprefix artifacts/test-cases/,$(_TEST_CASES))

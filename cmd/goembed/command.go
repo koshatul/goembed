@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/koshatul/goembed/shrink"
 	"github.com/koshatul/goembed/goembed"
+	"github.com/koshatul/goembed/shrink"
 	"github.com/koshatul/goembed/wrap"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
@@ -119,11 +119,15 @@ func getShrinker(cmd *cobra.Command) shrink.Shrinker {
 }
 
 func getWrapper(cmd *cobra.Command, s shrink.Shrinker) wrap.Wrapper {
+	opts := []wrap.Option{}
+	if len(viper.GetStringSlice("build")) > 0 {
+		opts = append(opts, wrap.AddBuildTag(viper.GetStringSlice("build")))
+	}
 	switch strings.ToLower(viper.GetString("wrapper")) {
 	case "none", "nodep":
-		return wrap.NewNoDepWrapper(viper.GetString("package"), s)
+		return wrap.NewNoDepWrapper(viper.GetString("package"), s, opts...)
 	case "afero":
-		return wrap.NewAferoWrapper(viper.GetString("package"), s)
+		return wrap.NewAferoWrapper(viper.GetString("package"), s, opts...)
 	default:
 		logrus.Errorf("Invalid wrapper type: %s", strings.ToLower(viper.GetString("wrapper")))
 		cmd.Help()

@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/dave/jennifer/jen"
 	"github.com/koshatul/goembed/goembed"
@@ -12,15 +13,27 @@ import (
 
 // AferoWrapper is a Wrapper compatible struct that uses afero for the file system
 type AferoWrapper struct {
-	file     *jen.File
-	files    map[string]string
-	shrinker shrink.Shrinker
+	file      *jen.File
+	files     map[string]string
+	shrinker  shrink.Shrinker
+	buildTags []string
 }
 
 // NewAferoWrapper returns a Wrapper compatible class that uses afero for the file system
-func NewAferoWrapper(packageName string, shrinker shrink.Shrinker) Wrapper {
+func NewAferoWrapper(packageName string, shrinker shrink.Shrinker, opts ...Option) Wrapper {
+	w := &AferoWrapper{
+		files:    map[string]string{},
+		shrinker: shrinker,
+	}
+	for _, opt := range opts {
+		opt(w)
+	}
+
 	f := jen.NewFile(packageName)
 	f.HeaderComment("Code generated - DO NOT EDIT.")
+	if len(w.buildTags) > 0 {
+		f.HeaderComment(fmt.Sprintf("+build %s", strings.Join(w.buildTags, ",")))
+	}
 	f.Line()
 	f.Comment("Fs is the filesystem containing the assets embedded in this package.").Line().Var().Id("Fs").Qual("github.com/spf13/afero", "Fs")
 
@@ -33,11 +46,9 @@ func NewAferoWrapper(packageName string, shrinker shrink.Shrinker) Wrapper {
 		)
 	}
 
-	return &AferoWrapper{
-		file:     f,
-		files:    map[string]string{},
-		shrinker: shrinker,
-	}
+	w.file = f
+
+	return w
 }
 
 // Name returns a simple name for this module

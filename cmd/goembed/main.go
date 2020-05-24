@@ -22,6 +22,10 @@ func init() {
 	viper.BindPFlag("file", rootCmd.PersistentFlags().Lookup("file"))
 	viper.BindEnv("file", "OUTPUT_FILE")
 
+	rootCmd.PersistentFlags().StringSliceP("build", "b", []string{}, "comma sepearted list of build flags")
+	viper.BindPFlag("build", rootCmd.PersistentFlags().Lookup("build"))
+	viper.BindEnv("build", "BUILD_FLAGS")
+
 	rootCmd.PersistentFlags().StringP("package", "p", "", "golang package name for file (default: based on output file directory)")
 	viper.BindPFlag("package", rootCmd.PersistentFlags().Lookup("package"))
 	viper.BindEnv("package", "PACKAGE_NAME")

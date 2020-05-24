@@ -20,12 +20,25 @@ type NoDepWrapper struct {
 	shrinker       shrink.Shrinker
 	children       map[string]*jen.Statement
 	openSwitchFunc *jen.Statement
+	buildTags      []string
 }
 
 // NewNoDepWrapper returns a Wrapper compatible class that uses no dependencies for the file system
-func NewNoDepWrapper(packageName string, shrinker shrink.Shrinker) Wrapper {
+func NewNoDepWrapper(packageName string, shrinker shrink.Shrinker, opts ...Option) Wrapper {
+	w := &NoDepWrapper{
+		files:    map[string]string{},
+		shrinker: shrinker,
+		children: map[string]*jen.Statement{},
+	}
+	for _, opt := range opts {
+		opt(w)
+	}
+
 	f := jen.NewFile(packageName)
 	f.HeaderComment("Code generated - DO NOT EDIT.")
+	if len(w.buildTags) > 0 {
+		f.HeaderComment(fmt.Sprintf("+build %s", strings.Join(w.buildTags, ",")))
+	}
 	f.Line()
 
 	f.Add(shrinker.Header()...)
@@ -42,6 +55,7 @@ func NewNoDepWrapper(packageName string, shrinker shrink.Shrinker) Wrapper {
 	)
 
 	openSwitchFunc := jen.Switch(jen.Id("name"))
+	w.openSwitchFunc = openSwitchFunc
 
 	f.Type().Id("fs").Struct()
 	f.Func().Params(jen.Id("a").Id("fs")).Id("Open").Params(
@@ -105,13 +119,9 @@ func NewNoDepWrapper(packageName string, shrinker shrink.Shrinker) Wrapper {
 		)
 	}
 
-	return &NoDepWrapper{
-		file:           f,
-		files:          map[string]string{},
-		shrinker:       shrinker,
-		children:       map[string]*jen.Statement{},
-		openSwitchFunc: openSwitchFunc,
-	}
+	w.file = f
+
+	return w
 }
 
 // Name returns a simple name for this module

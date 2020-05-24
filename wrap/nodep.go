@@ -13,19 +13,39 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// NoDepWrapper is a Wrapper compatible struct that uses no dependencies
+// NoDepWrapper is a Wrapper compatible struct that uses no dependencies.
 type NoDepWrapper struct {
 	file           *jen.File
 	files          map[string]string
 	shrinker       shrink.Shrinker
 	children       map[string]*jen.Statement
 	openSwitchFunc *jen.Statement
+	buildTags      []string
 }
 
-// NewNoDepWrapper returns a Wrapper compatible class that uses no dependencies for the file system
-func NewNoDepWrapper(packageName string, shrinker shrink.Shrinker) Wrapper {
+const noDepFileMode = 0444
+
+// NewNoDepWrapper returns a Wrapper compatible class that uses no dependencies for the file system.
+//nolint:funlen // it's long but it's readable
+func NewNoDepWrapper(packageName string, shrinker shrink.Shrinker, opts ...Option) Wrapper {
+	w := &NoDepWrapper{
+		files:    map[string]string{},
+		shrinker: shrinker,
+		children: map[string]*jen.Statement{},
+	}
+
+	for _, opt := range opts {
+		opt(w)
+	}
+
 	f := jen.NewFile(packageName)
+
 	f.HeaderComment("Code generated - DO NOT EDIT.")
+
+	if len(w.buildTags) > 0 {
+		f.HeaderComment(fmt.Sprintf("+build %s", strings.Join(w.buildTags, ",")))
+	}
+
 	f.Line()
 
 	f.Add(shrinker.Header()...)
@@ -42,6 +62,7 @@ func NewNoDepWrapper(packageName string, shrinker shrink.Shrinker) Wrapper {
 	)
 
 	openSwitchFunc := jen.Switch(jen.Id("name"))
+	w.openSwitchFunc = openSwitchFunc
 
 	f.Type().Id("fs").Struct()
 	f.Func().Params(jen.Id("a").Id("fs")).Id("Open").Params(
@@ -72,7 +93,7 @@ func NewNoDepWrapper(packageName string, shrinker shrink.Shrinker) Wrapper {
 
 	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("Name").Params().Params(jen.String()).Block(jen.Return(jen.Qual("path", "Base").Call(jen.Id("a").Dot("f").Dot("name"))))
 	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("Size").Params().Params(jen.Int64()).Block(jen.Return(jen.Id("a").Dot("f").Dot("size")))
-	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("Mode").Params().Params(jen.Qual("os", "FileMode")).Block(jen.Return(jen.Lit(0444)))
+	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("Mode").Params().Params(jen.Qual("os", "FileMode")).Block(jen.Return(jen.Lit(noDepFileMode)))
 	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("ModTime").Params().Params(jen.Qual("time", "Time")).Block(jen.Return(jen.Id("a").Dot("f").Dot("modtime")))
 	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("IsDir").Params().Params(jen.Bool()).Block(jen.Return(jen.Id("a").Dot("f").Dot("dir")))
 	f.Func().Params(jen.Id("a").Id("assetFileInfo")).Id("Sys").Params().Params(jen.Interface()).Block(jen.Return(jen.Nil()))
@@ -105,16 +126,12 @@ func NewNoDepWrapper(packageName string, shrinker shrink.Shrinker) Wrapper {
 		)
 	}
 
-	return &NoDepWrapper{
-		file:           f,
-		files:          map[string]string{},
-		shrinker:       shrinker,
-		children:       map[string]*jen.Statement{},
-		openSwitchFunc: openSwitchFunc,
-	}
+	w.file = f
+
+	return w
 }
 
-// Name returns a simple name for this module
+// Name returns a simple name for this module.
 func (b *NoDepWrapper) Name() string {
 	return "nodep"
 }
@@ -178,10 +195,11 @@ func (b *NoDepWrapper) AddFile(filename string, file goembed.File) error {
 	return nil
 }
 
-// Render writes the generated Go code to the supplied io.Writer, returning an
-// error on failure to write
+// Render writes the generated Go code to the supplied io.Writer, returning an.
+// error on failure to write.
 func (b *NoDepWrapper) Render(w io.Writer) error {
 	caseList := []jen.Code{}
+
 	for filename, file := range b.files {
 		if b.shrinker.IsReaderWithError() {
 			caseList = append(
@@ -213,6 +231,7 @@ func (b *NoDepWrapper) Render(w io.Writer) error {
 		}
 
 		children := []jen.Code{}
+
 		for f, v := range b.files {
 			if !strings.EqualFold(filename, f) && strings.HasPrefix(f, filename) {
 				ft := strings.TrimLeft(f[len(filename):], "/")
@@ -221,6 +240,7 @@ func (b *NoDepWrapper) Render(w io.Writer) error {
 				}
 			}
 		}
+
 		if len(children) > 0 {
 			b.children[filename].Id("children").Op(":").Index().Qual("os", "FileInfo").Values(
 				children...,

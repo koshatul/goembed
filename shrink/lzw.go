@@ -10,21 +10,23 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// LzwStreamShrinker is a Shrinker compatible struct that uses lzw compression
+// LzwStreamShrinker is a Shrinker compatible struct that uses lzw compression.
 type LzwStreamShrinker struct {
 }
 
-// NewLzwStreamShrinker returns a Shrinker compatible class that uses lzw compression
+const lzwLitWidth = 8
+
+// NewLzwStreamShrinker returns a Shrinker compatible class that uses lzw compression.
 func NewLzwStreamShrinker() Shrinker {
 	return &LzwStreamShrinker{}
 }
 
-// Name returns a simple name for this module
+// Name returns a simple name for this module.
 func (b *LzwStreamShrinker) Name() string {
 	return "lzw"
 }
 
-// IsStream returns true if the shrinker works on streams instead of byte slices
+// IsStream returns true if the shrinker works on streams instead of byte slices.
 func (b *LzwStreamShrinker) IsStream() bool {
 	return true
 }
@@ -34,25 +36,29 @@ func (b *LzwStreamShrinker) IsReaderWithError() bool {
 	return false
 }
 
-// Compress returns a byte array of compressed file data
+// Compress returns a byte array of compressed file data.
 func (b *LzwStreamShrinker) Compress(file goembed.File) ([]jen.Code, error) {
 	v := []jen.Code{}
 
 	cmpOut := new(bytes.Buffer)
 	rawIn := lzw.NewWriter(cmpOut, lzw.LSB, 8)
 	n, err := io.Copy(rawIn, file)
-	rawIn.Close()
+
+	_ = rawIn.Close()
+
 	if err != nil {
 		return nil, err
 	}
+
 	logrus.WithField("compression", "lzw").Debugf("Copied %d bytes into compressor", n)
 
 	buf := make([]byte, 1)
+
 	for {
-		_, err := cmpOut.Read(buf)
-		if err != nil {
+		if _, err := cmpOut.Read(buf); err != nil {
 			break
 		}
+
 		v = append(v, jen.Lit(int(buf[0])))
 	}
 
@@ -61,22 +67,22 @@ func (b *LzwStreamShrinker) Compress(file goembed.File) ([]jen.Code, error) {
 	return v, nil
 }
 
-// Decompressor returns the body code for the `decode(input)` function
+// Decompressor returns the body code for the `decode(input)` function.
 func (b *LzwStreamShrinker) Decompressor() []jen.Code {
 	return nil // Not used for streams.
 }
 
-// Reader returns the stream handler for the byte stream used when returning `Open()`
+// Reader returns the stream handler for the byte stream used when returning `Open()`.
 func (b *LzwStreamShrinker) Reader(params ...jen.Code) jen.Code {
-	return jen.Qual("compress/lzw", "NewReader").Call(jen.Qual("bytes", "NewReader").Params(params...), jen.Qual("compress/lzw", "LSB"), jen.Lit(8))
+	return jen.Qual("compress/lzw", "NewReader").Call(jen.Qual("bytes", "NewReader").Params(params...), jen.Qual("compress/lzw", "LSB"), jen.Lit(lzwLitWidth))
 }
 
-// ReaderWithError returns the stream handler for the byte stream used when returning `Open()` but also returns an error
+// ReaderWithError returns the stream handler for the byte stream used when returning `Open()` but also returns an error.
 func (b *LzwStreamShrinker) ReaderWithError(params ...jen.Code) jen.Code {
 	return nil
 }
 
-// Header returns additional code that is inserted in the body
+// Header returns additional code that is inserted in the body.
 func (b *LzwStreamShrinker) Header() []jen.Code {
 	return []jen.Code{}
 }

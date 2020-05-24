@@ -17,7 +17,7 @@ func configInit() {
 	viper.AddConfigPath("/run/secrets")
 	viper.AddConfigPath(".")
 
-	viper.ReadInConfig()
+	_ = viper.ReadInConfig()
 
 	if viper.GetBool("debug") {
 		logrus.SetLevel(logrus.DebugLevel)

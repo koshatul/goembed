@@ -1,4 +1,5 @@
 // Code generated - DO NOT EDIT.
+// +build !codeanalysis
 
 package assets
 

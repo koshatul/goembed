@@ -1,12 +1,15 @@
-# goembed
+# ~~goembed~~
 
-[![Build Status](https://travis-ci.org/koshatul/goembed.svg?branch=master)](https://travis-ci.org/koshatul/goembed)
+**NOTE: This package is deprecated, the functionality is built into Go since 1.16.**
 
-goembed takes a list of local files and embeds them into golang source files.
+See [pkg.go.dev/embed](https://pkg.go.dev/embed).
+
+~~goembed takes a list of local files and embeds them into golang source files.~~
 
 ## Compression
 
 Supported compression algorithms:
+
 - deflate
 - gzip
 - lzw
@@ -18,6 +21,7 @@ Supported compression algorithms:
 ## Wrappers
 
 Supported wrappers:
+
 - `nodep` No runtime dependencies, self-contained.
 - `afero` using [spf13/afero](https://github.com/spf13/afero).
 
@@ -25,37 +29,42 @@ Supported wrappers:
 
 Install the command line tool first.
 
-	go get github.com/koshatul/goembed/cmd/...
+```shell
+go get github.com/koshatul/goembed/cmd/...
+```
 
 goembed has sane defaults and will safely generate a go package from a directory or individual list of files.
 
-    $ goembed -f src/webasset/assets.go ./web
+```shell
+goembed -f src/webasset/assets.go ./web
+```
 
 Then in your application just import the generated package
 
 If you prefer to use a pseudo-filesystem there is support for using [afero](https://github.com/spf13/afero) as a wrapper.
 
-~~~ go
+```go
 package main
 
 import (
-	"log"
-	"net/http"
+  "log"
+  "net/http"
 
-	"github.com/koshatul/goembed/examples/webserver/assets"
+  "github.com/koshatul/goembed/examples/webserver/assets"
 )
 
 func main() {
-	fileserver := http.FileServer(assets.Fs)
-	http.Handle("/", http.StripPrefix("/", fileserver))
-	log.Println("Listening on :8080")
-	http.ListenAndServe(":8080", nil)
+  fileserver := http.FileServer(assets.Fs)
+  http.Handle("/", http.StripPrefix("/", fileserver))
+  log.Println("Listening on :8080")
+  http.ListenAndServe(":8080", nil)
 }
-~~~
-
-Then the filesystem should be visible from http://localhost:8080/
-
 ```
+
+Then the filesystem should be visible from [http://localhost:8080/](http://localhost:8080/)
+
+```shell
+$ goembed --help
 Usage:
   goembed [flags]
   goembed [command]
